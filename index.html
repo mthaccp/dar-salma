@@ -25,6 +25,7 @@
   --jasmin:#a8823d; --jasmin-soft:#f4ecdc;
   --navy:#1e2f62; --gold:#c9a55f; --on-navy:#f3efe6;
   --c1:#3556b0; --c2:#c38a26;
+  --k-rem:#a8761a; --k-pay:#2f56b0; --k-arr:#2f7a4f; --k-tom:#16767a; --k-out:#7a4fb0; --k-clean:#c0621a; --k-due:#b03a3a;
   --ok:#2f7a4f; --ok-soft:#dcefe3; --warn:#a8641a; --warn-soft:#f7e6d1; --bad:#b03a3a; --bad-soft:#f6dddd;
   --display:"Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
   --brand:"Cinzel", "Trajan Pro", Georgia, serif;
@@ -34,13 +35,13 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#111529; --surface:#192037; --sunk:#222a44; --line:#2e3857;
   --fg:#e9ebf2; --muted:#9ba2b8; --accent:#a3b6ea; --accent-soft:#25325a; --on-accent:#111a33;
-  --jasmin:#d8b46c; --jasmin-soft:#3a3020; --navy:#17244d; --c1:#6f8fe0; --c2:#b98a30;
+  --jasmin:#d8b46c; --jasmin-soft:#3a3020; --navy:#17244d; --c1:#6f8fe0; --c2:#b98a30; --k-rem:#e0b360; --k-pay:#7ea2ee; --k-arr:#6cc495; --k-tom:#5cc8c8; --k-out:#b493e8; --k-clean:#f0a060; --k-due:#ec8383;
   --ok:#6cc495; --ok-soft:#1d3329; --warn:#e3a35c; --warn-soft:#3a2b1b; --bad:#ec8383; --bad-soft:#3d2224;
   color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#111529; --surface:#192037; --sunk:#222a44; --line:#2e3857;
   --fg:#e9ebf2; --muted:#9ba2b8; --accent:#a3b6ea; --accent-soft:#25325a; --on-accent:#111a33;
-  --jasmin:#d8b46c; --jasmin-soft:#3a3020; --navy:#17244d; --c1:#6f8fe0; --c2:#b98a30;
+  --jasmin:#d8b46c; --jasmin-soft:#3a3020; --navy:#17244d; --c1:#6f8fe0; --c2:#b98a30; --k-rem:#e0b360; --k-pay:#7ea2ee; --k-arr:#6cc495; --k-tom:#5cc8c8; --k-out:#b493e8; --k-clean:#f0a060; --k-due:#ec8383;
   --ok:#6cc495; --ok-soft:#1d3329; --warn:#e3a35c; --warn-soft:#3a2b1b; --bad:#ec8383; --bad-soft:#3d2224;
   color-scheme:dark}
 *{box-sizing:border-box}
@@ -227,6 +228,16 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 .pillbtn.ok{background:var(--ok-soft);color:var(--ok)}.pillbtn.bad{background:var(--bad-soft);color:var(--bad)}
 .pillbtn:hover{border-color:currentColor}
 .f label .btn{color:var(--fg)}
+.sec{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--sc);border-radius:var(--r);overflow:hidden;min-width:0}
+.sec>.sh{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--sunk);background:color-mix(in srgb,var(--sc) 10%,var(--surface));border-bottom:1px solid var(--line);flex-wrap:wrap}
+.sec>.sh h3{margin:0;color:var(--sc)}
+.sec>.sh>svg{width:19px;height:19px;fill:none;stroke:var(--sc);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.sec .cnt{background:var(--sc);color:var(--surface);border-radius:999px;font-size:.72rem;font-weight:800;padding:1px 8px;line-height:1.5}
+.sec .sp{flex:1}
+.sec>.list{border:none;border-radius:0}
+.sec .btn.ghost{color:var(--sc)}
+.colstack{display:grid;gap:16px;align-content:start;min-width:0}
+.stat{border-top:3px solid var(--sc,var(--line))}
 .r1{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .r1 .t{min-width:0}
 .sm-only{display:none}
@@ -308,12 +319,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=27"></script>
+<script src="firebase-config.js?v=28"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "27";
+const APP_VERSION = "28";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -509,29 +520,50 @@ function vJour(){
   const dueSum = due.reduce((s,b)=>s+balance(b),0);
   const tom = addDays(t,1);
   const arrTom = activeBookings().filter(b=>b.checkIn===tom);
+  const dirty = units().filter(r=>roomState(r)==="a_nettoyer").length;
   let h = '<div class="row spread"><h2>'+fmtLong(t).replace(/^./,c=>c.toUpperCase())+'</h2><button class="btn primary hm" data-act="new-booking"'+(S.canWrite?'':' disabled')+'>+ Réservation</button></div>';
   const soon = upcomingArrivals(24);
-  if(soon.length) h += '<div class="remind"><div class="rh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><h3 style="margin:0">Rappels · arrivées dans les 24 h</h3><span class="grow"></span><button class="btn sm ghost" data-act="ics-all">Ajouter au calendrier</button></div><div class="list">'
-     + soon.map(b=>{ const hrs=(arrivalAt(b)-Date.now())/3600e3; return bookingItem(b, '<b style="color:'+(hrs<=12?'var(--bad)':'var(--warn)')+'">Arrivée '+inHours(b)+' ('+(b.arrivalTime||"14:00")+')</b>'); }).join("")+'</div></div>';
   const opts = activeBookings().filter(isOption).sort((a,b)=>String(a.depositBy||a.checkIn).localeCompare(String(b.depositBy||b.checkIn)));
-  if(opts.length) h += '<div class="remind" style="border-left-color:var(--accent)"><div class="rh"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke:var(--accent)"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg><h3 style="margin:0">Acomptes en attente</h3></div><div class="list">'
-     + opts.map(b=>{ const due=Math.max(0,depositDue(b)-paid(b)); return bookingItem(b, '<b style="color:'+(optionLate(b)?'var(--bad)':'var(--accent)')+'">'+(due>0?'Acompte '+dt(due):'Acompte reçu, à confirmer')+(b.depositBy?(optionLate(b)?' · en retard (avant le '+fmtD(b.depositBy)+')':' · avant le '+fmtD(b.depositBy)):'')+'</b>'); }).join("")+'</div></div>';
-  h += '<div class="stats"><div class="stat"><span>Chambres occupées ce soir</span><b class="num">'+occ+' / '+units().length+'</b></div>'
-     + '<div class="stat"><span>Arrivées aujourd\'hui</span><b class="num">'+arr.length+'</b></div>'
-     + '<div class="stat"><span>Départs aujourd\'hui</span><b class="num">'+dep.length+'</b></div>'
-     + '<div class="stat"><span>À encaisser (séjours commencés)</span><b class="num">'+dt(dueSum)+'</b></div></div>';
-  h += '<div class="cols"><div><h3>Arrivées</h3><div class="list">'+(arr.length?arr.map(b=>bookingItem(b)).join(""):'<div class="empty">Aucune arrivée aujourd\'hui.</div>')+'</div>';
-  if(arrTom.length) h += '<h3 style="margin-top:16px">Demain</h3><div class="list">'+arrTom.map(b=>bookingItem(b)).join("")+'</div>';
-  h += '<h3 style="margin-top:16px">Départs</h3><div class="list">'+(dep.length?dep.map(b=>bookingItem(b)).join(""):'<div class="empty">Aucun départ aujourd\'hui.</div>')+'</div></div>';
-  h += '<div><div class="row spread" style="margin-bottom:8px"><h3 style="margin:0">Ménage et état des chambres'+(units().filter(r=>roomState(r)==="a_nettoyer").length?' · '+units().filter(r=>roomState(r)==="a_nettoyer").length+' à nettoyer':'')+'</h3>'+(S.canWrite?'<button class="btn sm ghost edit" data-act="rooms-sheet"><svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>Modifier les chambres</button>':'')+'</div><div class="list">'+(units().length?units().map(r=>{
+  if(soon.length || opts.length){
+    h += (soon.length && opts.length) ? '<div class="cols">' : '<div class="colstack">';
+    if(soon.length) h += sec("rem","bell","Rappels · arrivées dans les 24 h",soon.length,'<button class="btn sm ghost" data-act="ics-all">Ajouter au calendrier</button>',
+      soon.map(b=>{ const hrs=(arrivalAt(b)-Date.now())/3600e3; return bookingItem(b, '<b style="color:'+(hrs<=12?'var(--bad)':'var(--k-rem)')+'">Arrivée '+inHours(b)+' ('+(b.arrivalTime||"14:00")+')</b>'); }).join(""));
+    if(opts.length) h += sec("pay","card","Acomptes en attente",opts.length,"",opts.map(b=>{ const due=Math.max(0,depositDue(b)-paid(b)); return bookingItem(b, '<b style="color:'+(optionLate(b)?'var(--bad)':'var(--accent)')+'">'+(due>0?'Acompte '+dt(due):'Acompte reçu, à confirmer')+(b.depositBy?(optionLate(b)?' · en retard (avant le '+fmtD(b.depositBy)+')':' · avant le '+fmtD(b.depositBy)):'')+'</b>'); }).join(""));
+    h += '</div>';
+  }
+  h += '<div class="stats"><div class="stat" style="--sc:var(--accent)"><span>Chambres occupées ce soir</span><b class="num">'+occ+' / '+units().length+'</b></div>'
+     + '<div class="stat" style="--sc:var(--k-arr)"><span>Arrivées aujourd\'hui</span><b class="num">'+arr.length+'</b></div>'
+     + '<div class="stat" style="--sc:var(--k-out)"><span>Départs aujourd\'hui</span><b class="num">'+dep.length+'</b></div>'
+     + '<div class="stat" style="--sc:var(--k-due)"><span>À encaisser (séjours commencés)</span><b class="num">'+dt(dueSum)+'</b></div></div>';
+  h += '<div class="cols"><div class="colstack">';
+  h += sec("arr","in","Arrivées aujourd\'hui",arr.length,"", arr.length?arr.map(b=>bookingItem(b)).join(""):'<div class="empty">Aucune arrivée aujourd\'hui.</div>');
+  if(arrTom.length) h += sec("tom","cal","Arrivées demain",arrTom.length,"", arrTom.map(b=>bookingItem(b)).join(""));
+  h += sec("out","out","Départs aujourd\'hui",dep.length,"", dep.length?dep.map(b=>bookingItem(b)).join(""):'<div class="empty">Aucun départ aujourd\'hui.</div>');
+  h += '</div><div class="colstack">';
+  h += sec("clean","clean","Ménage et état des chambres"+(dirty?' · '+dirty+' à nettoyer':''),0,(S.canWrite?'<button class="btn sm ghost edit" data-act="rooms-sheet">'+PEN_SVG+'Modifier les chambres</button>':''),
+    units().length?units().map(r=>{
       const o = occupying(r.id,t); const c = o?client(o.clientId):null;
       const leaving = dep.find(b=>b.roomId===r.id || isHouse(b.roomId));
       const st = roomState(r), ld = lastDeparture(r), autoDirty = st==="a_nettoyer" && ld && ld > new Date(r.cleanedAt||AUTO_SINCE);
       const pill = st==="propre"?'<span class="pill ok">Propre</span>':st==="a_nettoyer"?'<span class="pill warn">À nettoyer</span>':'<span class="pill bad">Réparation</span>';
       return '<div class="item'+(S.canWrite?' click" data-act="edit-room" data-id="'+r.id:'')+'"><span class="roomtag">'+esc(r.short||r.name)+'</span><div class="grow"><div class="t">'+esc(r.name)+'</div><div class="s">'+(o?'Occupée'+(isHouse(o.roomId)?' (maison entière)':'')+' · '+esc(c?c.name:"")+' jusqu\'au '+fmtD(o.checkOut)+(o.babyBed?' · lit bébé':''):leaving?(autoDirty?'Départ fait · ménage à faire':'Départ aujourd\'hui à '+(S.settings.checkoutTime||"12:00")):'Libre ce soir')+(autoDirty&&!leaving?' · depuis le départ du '+fmtD(toISO(ld)):'')+(r.beds==="separes"?' · lits séparés':'')+'</div></div>'+(!S.canWrite ? pill : st==="a_nettoyer" ? '<button class="btn sm primary" data-act="cycle-status" data-id="'+r.id+'">Marquer propre</button>' : '<button class="pillbtn '+(st==="propre"?'ok':'bad')+'" data-act="cycle-status" data-id="'+r.id+'" title="'+(st==="propre"?'Toucher pour marquer à nettoyer':'Toucher quand la réparation est faite')+'">'+(st==="propre"?'Propre':'Réparation')+'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg></button>')+'</div>';
-    }).join(""):'<div class="empty">Aucune chambre. Ajoutez-les dans Finances › Chambres.</div>')+'</div>';
-  h += '<h3 style="margin-top:16px">Soldes à encaisser</h3><div class="list">'+(due.length?due.map(b=>bookingItem(b)).join(""):'<div class="empty">Tout est encaissé.</div>')+'</div></div></div>';
+    }).join(""):'<div class="empty">Aucune chambre. Ajoutez-les dans Finances › Chambres.</div>');
+  h += sec("due","coins","Soldes à encaisser",due.length,(due.length?'<b class="num" style="color:var(--k-due)">'+dt(dueSum)+'</b>':''), due.length?due.map(b=>bookingItem(b)).join(""):'<div class="empty">Tout est encaissé.</div>');
+  h += '</div></div>';
   return h;
+}
+const SEC_ICONS = {
+  bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+  card:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/>',
+  in:'<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l4-4-4-4M14 12H3"/>',
+  out:'<path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3M15 16l4-4-4-4M19 12H8"/>',
+  cal:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4M12 13v4M10 15h4"/>',
+  clean:'<path d="M14 3l-3 9M6 21l2-9h8l2 9zM9 16h6"/>',
+  coins:'<ellipse cx="9" cy="7" rx="5" ry="2.5"/><path d="M4 7v4c0 1.4 2.2 2.5 5 2.5s5-1.1 5-2.5V7M10 15.4c.6.1 1.3.1 2 .1 2.8 0 5-1.1 5-2.5V9.5M14 18.5c-.8.4-1.9.5-3 .5-2.8 0-5-1.1-5-2.5V13"/>'
+};
+const PEN_SVG='<svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>';
+function sec(k, icon, title, count, right, body){
+  return '<section class="sec" style="--sc:var(--k-'+k+')"><div class="sh"><svg viewBox="0 0 24 24" aria-hidden="true">'+SEC_ICONS[icon]+'</svg><h3>'+title+'</h3>'+(count?'<span class="cnt">'+count+'</span>':'')+'<span class="sp"></span>'+(right||'')+'</div><div class="list">'+body+'</div></section>';
 }
 
 function vCal(){
