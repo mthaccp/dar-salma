@@ -124,6 +124,7 @@ h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--mu
 .cal tr.house th.room{color:var(--accent);font-weight:800}
 .cal tr.house td,.cal tr.house th{border-bottom:2px solid var(--line)}
 .bk{display:block;height:30px;margin:0 -1px;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:.72rem;line-height:30px;overflow:hidden;white-space:nowrap;text-align:left;padding-left:6px;cursor:pointer;border:none;width:calc(100% + 2px)}
+.bk.opt{opacity:.6;outline:2px dashed var(--fg);outline-offset:-2px}
 .bk.unpaid{background:var(--jasmin);color:var(--surface)}
 .bk.start{border-radius:6px 0 0 6px;margin-left:3px;width:calc(100% - 2px)}
 .bk.end{border-radius:0 6px 6px 0;margin-right:3px}
@@ -209,6 +210,14 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.88
 .remind .list{border:none}
 nav.tabs button{position:relative}
 nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge);position:absolute;top:2px;right:calc(50% - 22px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--bad);color:#fff;font-size:.68rem;font-weight:800;line-height:18px;text-align:center}
+.exadd{display:grid;grid-template-columns:1fr 64px 92px;gap:8px;margin-top:8px}
+.exadd #x_other{grid-column:1/-1}.exadd #x_add{grid-column:1/-1;justify-self:start}
+.exadd select,.exadd input{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;min-width:0;width:100%;color:var(--fg)}
+.catrow{display:grid;grid-template-columns:1.4fr 90px 1fr auto;gap:6px;align-items:center}
+.catrow input{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 9px;min-width:0;width:100%;color:var(--fg)}
+@media (max-width:520px){.catrow{grid-template-columns:1fr 80px auto}.catrow [data-k="unit"]{grid-column:1/3;grid-row:2}}
+.btn.wa{background:#1f8a4c;border-color:#1f8a4c;color:#fff;display:inline-flex;align-items:center;gap:6px}
+.btn.wa svg{width:16px;height:16px;fill:currentColor}
 .pics{display:flex;flex-wrap:wrap;gap:8px}
 .pic{position:relative;width:84px;height:84px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--sunk);cursor:zoom-in;padding:0}
 .pic img{width:100%;height:100%;object-fit:cover;display:block}
@@ -261,12 +270,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=20"></script>
+<script src="firebase-config.js?v=21"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "20";
+const APP_VERSION = "21";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -301,6 +310,15 @@ const store = { get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JS
 const S = { rooms:[], clients:[], bookings:[], expenses:[], loaded:{}, tab: store.get("ds_tab","jour"),
   calStart: addDays(today(), -1), resaFilter:"avenir", clientQ:"", finMonth: today().slice(0,7), anaPeriod:"mois", canWrite:true, db:null };
 let sheetOpen = null;
+const DEF_SET = {address:"", housePhone:"", checkinTime:"14:00", checkoutTime:"12:00", depositPct:30, depositDays:3, wifi:"", instructions:"",
+  catalog:[{name:"Petit-déjeuner",price:0,unit:"par personne et par jour"},{name:"Dîner",price:0,unit:"par personne"},{name:"Transfert aéroport",price:0,unit:"par trajet"},{name:"Excursion",price:0,unit:"par personne"},{name:"Lessive",price:0,unit:"par lot"}]};
+S.settings = JSON.parse(JSON.stringify(DEF_SET));
+const extrasSum = b => (b.extras||[]).reduce((t,x)=>t+(Number(x.qty)||0)*(Number(x.price)||0),0);
+const depositDue = b => Math.round((Number(b.total)||0)*(Number(S.settings.depositPct)||0)/100);
+const isOption = b => b.status==="option";
+const optionLate = b => isOption(b) && b.depositBy && b.depositBy < today();
+const firstName = n => String(n||"").trim().split(/\s+/)[0]||"";
+function waNumber(ph){ let v=String(ph||"").replace(/[^\d+]/g,""); if(!v) return ""; if(v[0]==="+") v=v.slice(1); else if(v.startsWith("00")) v=v.slice(2); else if(v.length===8) v="216"+v; return v.replace(/\D/g,""); }
 
 function toast(msg){ const r=$("#toastRoot"); r.innerHTML='<div class="toast" role="status">'+esc(msg)+'</div>'; clearTimeout(toast.t); toast.t=setTimeout(()=>r.innerHTML="",2200); }
 const room = id => S.rooms.find(r=>r.id===id);
@@ -401,6 +419,7 @@ async function boot(){
         sub("clients",(a,b)=>String(a.name).localeCompare(String(b.name),"fr"));
         sub("bookings",(a,b)=>String(a.checkIn).localeCompare(String(b.checkIn)));
         sub("expenses",(a,b)=>String(b.date).localeCompare(String(a.date)));
+        unsubs.push(db.collection("settings").doc("general").onSnapshot(d=>{ S.settings = Object.assign(JSON.parse(JSON.stringify(DEF_SET)), d.exists ? d.data() : {}); render(); }, ()=>{}));
       }
     } else {
       stopSubs(); S.db=null; S.rooms=[]; S.clients=[]; S.bookings=[]; S.expenses=[]; S.loaded={};
@@ -428,7 +447,7 @@ function render(){
 
 function bookingItem(b, extra){
   const c = client(b.clientId), r = room(b.roomId), bal = balance(b);
-  const st = b.status==="annulee" ? '<span class="pill bad">Annulée</span>' : bal>0 ? '<span class="pill warn num">Reste '+dt(bal)+'</span>' : '<span class="pill ok">Payé</span>';
+  const st = b.status==="annulee" ? '<span class="pill bad">Annulée</span>' : isOption(b) ? '<span class="pill '+(optionLate(b)?'bad':'info')+' num">Option'+(Math.max(0,depositDue(b)-paid(b))>0?' · acompte '+dt(Math.max(0,depositDue(b)-paid(b))):'')+'</span>' : bal>0 ? '<span class="pill warn num">Reste '+dt(bal)+'</span>' : '<span class="pill ok">Payé</span>';
   return '<div class="item click" data-act="edit-booking" data-id="'+b.id+'"><span class="roomtag">'+esc(r?r.short||r.name:"?")+'</span><div class="grow"><div class="t">'+esc(c?c.name:"Client inconnu")+(b.example?' <span class="pill ex">exemple</span>':'')+'</div><div class="s num">'+fmtD(b.checkIn)+' → '+fmtD(b.checkOut)+' · '+nights(b.checkIn,b.checkOut)+' nuit(s) · '+(b.guests||1)+' pers.'+(b.children?' dont '+b.children+' enfant'+(b.children>1?'s':''):'')+(b.babyBed?' + lit bébé':'')+(extra?' · '+extra:'')+'</div></div>'+st+'</div>';
 }
 
@@ -445,6 +464,9 @@ function vJour(){
   const soon = upcomingArrivals(24);
   if(soon.length) h += '<div class="remind"><div class="rh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><h3 style="margin:0">Rappels · arrivées dans les 24 h</h3><span class="grow"></span><button class="btn sm ghost" data-act="ics-all">Ajouter au calendrier</button></div><div class="list">'
      + soon.map(b=>{ const hrs=(arrivalAt(b)-Date.now())/3600e3; return bookingItem(b, '<b style="color:'+(hrs<=12?'var(--bad)':'var(--warn)')+'">Arrivée '+inHours(b)+' ('+(b.arrivalTime||"14:00")+')</b>'); }).join("")+'</div></div>';
+  const opts = activeBookings().filter(isOption).sort((a,b)=>String(a.depositBy||a.checkIn).localeCompare(String(b.depositBy||b.checkIn)));
+  if(opts.length) h += '<div class="remind" style="border-left-color:var(--accent)"><div class="rh"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke:var(--accent)"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg><h3 style="margin:0">Acomptes en attente</h3></div><div class="list">'
+     + opts.map(b=>{ const due=Math.max(0,depositDue(b)-paid(b)); return bookingItem(b, '<b style="color:'+(optionLate(b)?'var(--bad)':'var(--accent)')+'">'+(due>0?'Acompte '+dt(due):'Acompte reçu, à confirmer')+(b.depositBy?(optionLate(b)?' · en retard (avant le '+fmtD(b.depositBy)+')':' · avant le '+fmtD(b.depositBy)):'')+'</b>'); }).join("")+'</div></div>';
   h += '<div class="stats"><div class="stat"><span>Chambres occupées ce soir</span><b class="num">'+occ+' / '+units().length+'</b></div>'
      + '<div class="stat"><span>Arrivées aujourd\'hui</span><b class="num">'+arr.length+'</b></div>'
      + '<div class="stat"><span>Départs aujourd\'hui</span><b class="num">'+dep.length+'</b></div>'
@@ -479,13 +501,13 @@ function vCal(){
         const isStart = b.checkIn===d || d===start, isEnd = addDays(d,1)===b.checkOut;
         const c = client(b.clientId);
         const label = (b.checkIn===d||d===start)?esc(c?c.name.split(" ")[0]:"?"):"";
-        h += '<td><button class="bk '+(balance(b)>0?'unpaid ':'')+(isStart?'start ':'')+(isEnd?'end':'')+'" data-act="edit-booking" data-id="'+b.id+'" title="'+esc(c?c.name:"")+'">'+label+'</button></td>';
+        h += '<td><button class="bk '+(isOption(b)?'opt ':'')+(balance(b)>0?'unpaid ':'')+(isStart?'start ':'')+(isEnd?'end':'')+'" data-act="edit-booking" data-id="'+b.id+'" title="'+esc(c?c.name:"")+'">'+label+'</button></td>';
       } else h += '<td><button class="cell" data-act="new-booking" data-room="'+r.id+'" data-day="'+d+'" aria-label="Réserver '+esc(r.name)+' le '+fmtD(d)+'"'+(S.canWrite?'':' disabled')+'></button></td>';
     });
     h += '</tr>';
   });
   h += '</tbody></table></div>';
-  h += '<div class="legend"><span><i style="background:var(--accent)"></i>Payé</span><span><i style="background:var(--jasmin)"></i>Solde à encaisser</span><span><i style="background:repeating-linear-gradient(135deg,var(--line) 0 3px,transparent 3px 6px)"></i>Maison entière indisponible</span><span>Touchez une case vide pour réserver.</span></div>';
+  h += '<div class="legend"><span><i style="background:var(--accent)"></i>Payé</span><span><i style="background:var(--jasmin)"></i>Solde à encaisser</span><span><i style="background:var(--accent);opacity:.6;outline:1.5px dashed var(--fg);outline-offset:-1.5px"></i>Option (acompte attendu)</span><span><i style="background:repeating-linear-gradient(135deg,var(--line) 0 3px,transparent 3px 6px)"></i>Maison entière indisponible</span><span>Touchez une case vide pour réserver.</span></div>';
   if(!S.rooms.length) h += '<div class="empty">Ajoutez vos chambres dans Finances › Chambres pour voir le calendrier.</div>';
   return h;
 }
@@ -494,10 +516,11 @@ function vResa(){
   const t = today(), f = S.resaFilter;
   let list = S.bookings.slice();
   if(f==="avenir") list = list.filter(b=>b.status!=="annulee" && b.checkOut>=t);
+  else if(f==="options") list = list.filter(isOption);
   else if(f==="passees") list = list.filter(b=>b.status!=="annulee" && b.checkOut<t).reverse();
   else if(f==="impayees") list = list.filter(b=>b.status!=="annulee" && balance(b)>0);
   else if(f==="annulees") list = list.filter(b=>b.status==="annulee");
-  const seg = [["avenir","En cours et à venir"],["impayees","Impayées"],["passees","Passées"],["annulees","Annulées"]];
+  const seg = [["avenir","En cours et à venir"],["options","Options"],["impayees","Impayées"],["passees","Passées"],["annulees","Annulées"]];
   let h = '<div class="row spread"><h2>Réservations</h2><div class="row"><button class="btn sm" data-act="ics-upcoming">Rappels dans le calendrier</button><button class="btn primary" data-act="new-booking"'+(S.canWrite?'':' disabled')+'>+ Réservation</button></div></div>';
   h += '<div class="seg" role="tablist">'+seg.map(([k,l])=>'<button class="'+(k===f?'on':'')+'" data-act="resa-filter" data-f="'+k+'">'+l+'</button>').join("")+'</div>';
   h += '<div class="list">'+(list.length?list.map(b=>bookingItem(b, b.source?esc(b.source):"")).join(""):'<div class="empty">Aucune réservation dans cette liste. Touchez « + Réservation » pour en ajouter une.</div>')+'</div>';
@@ -537,6 +560,7 @@ function vFin(){
   if(Object.keys(byCat).length) h += '<div class="row" style="margin-bottom:8px">'+Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<span class="pill info num">'+esc(k)+' · '+dt(v)+'</span>').join("")+'</div>';
   h += '<div class="list">'+(exps.length?exps.map(e=>'<div class="item click" data-act="edit-expense" data-id="'+e.id+'"><div class="grow"><div class="t">'+esc(e.label||e.category)+(e.example?' <span class="pill ex">exemple</span>':'')+'</div><div class="s num">'+fmtD(e.date)+' · '+esc(e.category||"")+'</div></div><b class="num">'+dt(e.amount)+'</b></div>').join(""):'<div class="empty">Aucune dépense ce mois-ci.</div>')+'</div></div>';
   h += '<div><h3>Paiements reçus</h3><div class="list">'+(pays.length?pays.map(p=>{const c=client(p.b.clientId);return '<div class="item click" data-act="edit-booking" data-id="'+p.b.id+'"><div class="grow"><div class="t">'+esc(c?c.name:"")+'</div><div class="s num">'+fmtD(p.date)+' · '+esc(p.method||"")+'</div></div><b class="num">'+dt(p.amount)+'</b></div>';}).join(""):'<div class="empty">Aucun paiement enregistré ce mois-ci.</div>')+'</div>';
+  h += '<div class="row spread" style="margin:16px 0 8px"><h3 style="margin:0">Paramètres</h3></div><div class="list"><div class="item click" data-act="settings"><div class="grow"><div class="t">Maison, acompte et services en plus</div><div class="s">Adresse, heures, acompte '+(S.settings.depositPct||0)+' %, Wi-Fi, consignes, liste des services</div></div><span class="btn sm">Modifier</span></div></div>';
   h += '<div class="row spread" style="margin:16px 0 8px"><h3 style="margin:0">Chambres</h3><button class="btn sm" data-act="new-room"'+(S.canWrite?'':' disabled')+'>+ Chambre</button></div><div class="list">'+(S.rooms.length?S.rooms.map(r=>'<div class="item click" data-act="edit-room" data-id="'+r.id+'"><span class="roomtag">'+esc(r.short||r.name)+'</span><div class="grow"><div class="t">'+esc(r.name)+'</div><div class="s">'+roomDesc(r)+(false?' · '+esc(r.note):'')+'</div></div><span class="num">'+priceLabel(r)+'</span><svg class="pen" style="color:var(--muted)" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg></div>').join(""):'<div class="empty">Aucune chambre.</div>')+'</div></div></div>';
   return h;
 }
@@ -689,6 +713,7 @@ function viewPhoto(src){
   const v=document.createElement("div"); v.className="viewer"; v.innerHTML='<img alt="Pièce d\'identité"><button type="button" class="btn">Fermer</button>';
   v.querySelector("img").src=src; v.addEventListener("click", e=>{ if(e.target.tagName!=="IMG") v.remove(); }); document.body.appendChild(v);
 }
+const WA_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.1 5.1 0 0 0 1.1 2.7 11.7 11.7 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .1-1.2c0-.1-.2-.2-.5-.3z"/></svg>';
 const CAM_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
 const UP_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v4h16v-4"/></svg>';
 
@@ -705,7 +730,8 @@ const dis = () => S.canWrite ? '' : ' disabled';
 
 function bookingSheet(b){
   const isNew = !b;
-  b = b ? JSON.parse(JSON.stringify(b)) : { id: uid(), roomId: (units()[0]||S.rooms[0])?.id||"", clientId:"", checkIn: today(), checkOut: addDays(today(),1), guests:2, pricePerNight: (units()[0]||S.rooms[0])?.price||0, total:0, payments:[], status:"confirmee", source:"Direct", notes:"" };
+  b = b ? JSON.parse(JSON.stringify(b)) : { id: uid(), roomId: (units()[0]||S.rooms[0])?.id||"", clientId:"", checkIn: today(), checkOut: addDays(today(),1), guests:2, pricePerNight: (units()[0]||S.rooms[0])?.price||0, total:0, payments:[], extras:[], status:"option", depositBy:"", source:"Direct", notes:"" };
+  if(isNew){ const lim=addDays(today(), Number(S.settings.depositDays)||3); b.depositBy = lim < b.checkIn ? lim : today(); }
   const html = '<form class="f" id="bf"><div class="row spread"><h2>'+(isNew?'Nouvelle réservation':'Réservation')+'</h2><button type="button" class="btn ghost" data-act="close">Fermer</button></div>'
    + '<label>Client<select id="b_client"><option value="">— Choisir —</option>'+opt("__new","+ Nouveau client",b.clientId?"":"__new")+S.clients.map(c=>opt(c.id,c.name+(c.phone?" · "+c.phone:""),b.clientId)).join("")+'</select></label>'
    + '<div id="newClient" class="g2"><label>Nom complet<input id="nc_name" autocomplete="off"></label><label>Téléphone<input id="nc_phone" type="tel"></label></div>'
@@ -714,12 +740,15 @@ function bookingSheet(b){
    + '<label style="display:flex;align-items:center;gap:8px;color:var(--fg);align-self:end;padding-bottom:12px"><input id="b_baby" type="checkbox" style="width:auto"'+(b.babyBed?' checked':'')+'> Ajouter un lit bébé</label></div>'
    + '<div class="g2"><label>Arrivée<input id="b_in" type="date" value="'+b.checkIn+'"></label><label>Départ<input id="b_out" type="date" value="'+b.checkOut+'"></label></div>'
    + '<div class="g2"><label>Heure d\'arrivée prévue<input id="b_time" type="time" value="'+esc(b.arrivalTime||"14:00")+'"></label>'+(!isNew&&b.status!=="annulee"?'<label>Rappels<button type="button" class="btn sm" id="b_ics" style="justify-self:start;margin-top:2px">Ajouter au calendrier</button></label>':'<span></span>')+'</div>'
+   + (b.status!=="annulee"?'<div class="g2"><label>Statut<select id="b_status">'+opt("option","Option",b.status)+opt("confirmee","Confirmée",b.status)+'</select></label><label id="b_dep_l">Acompte avant le<input id="b_depby" type="date" value="'+esc(b.depositBy||"")+'"></label></div>':'')
    + '<div class="g2"><label><span id="b_price_l">Prix par nuit (DT)</span><input id="b_price" type="number" min="0" step="0.5" value="'+(b.pricePerNight||0)+'"></label><label>Source<select id="b_source">'+["Direct","Téléphone","Booking.com","Airbnb","Facebook / Instagram","Bouche à oreille","Autre"].map(s=>opt(s,s,b.source)).join("")+'</select></label></div>'
+   + '<div><h3>Services en plus</h3><div id="b_ex"></div>'+(S.canWrite?'<div class="exadd"><select id="x_name" aria-label="Service">'+(S.settings.catalog||[]).map((c,i)=>'<option value="'+i+'">'+esc(c.name)+'</option>').join("")+'<option value="__autre">Autre…</option></select><input id="x_qty" type="number" min="1" value="1" aria-label="Quantité"><input id="x_price" type="number" min="0" step="0.5" aria-label="Prix unitaire (DT)" placeholder="Prix"><input id="x_other" placeholder="Nom du service" hidden><button type="button" class="btn sm" id="x_add">+ Ajouter</button></div>':'')+'</div>'
    + '<div id="b_warn"></div><div class="summary" id="b_sum"></div>'
    + '<div><h3>Paiements</h3><div id="b_pays"></div><div class="g2" style="margin-top:8px"><label>Montant (DT)<input id="p_amt" type="number" min="0" step="0.5" placeholder="0"></label><label>Mode<select id="p_meth">'+["Espèces","Virement","Carte","Chèque","Plateforme"].map(s=>opt(s,s)).join("")+'</select></label></div><div class="row" style="margin-top:8px"><input id="p_date" type="date" value="'+today()+'" style="flex:1"><button type="button" class="btn sm" id="p_add"'+dis()+'>+ Ajouter le paiement</button></div></div>'
    + '<label>Notes<textarea id="b_notes" rows="2" placeholder="Heure d\'arrivée, demande particulière…">'+esc(b.notes)+'</textarea></label>'
    + '<div><h3>Pièces d\'identité (passeport, CIN)</h3><div class="pics" id="b_pics"><span class="s" style="color:var(--muted);font-size:.85rem">Chargement…</span></div>'
    + (S.canWrite?'<div class="row" style="margin-top:8px"><label class="btn sm upl">'+CAM_SVG+'Prendre une photo<input type="file" accept="image/*" capture="environment" id="b_cam" hidden></label><label class="btn sm upl">'+UP_SVG+'Choisir une photo<input type="file" accept="image/*" multiple id="b_file" hidden></label></div>':'')+'</div>'
+   + '<div><h3>Message WhatsApp</h3><div class="row" style="margin-bottom:8px"><select id="w_tpl" style="flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px">'+opt("confirmation","Confirmation de réservation","confirmation")+opt("acompte","Rappel acompte / paiement")+opt("arrivee","Consignes d\'arrivée")+opt("merci","Remerciement après le séjour")+'</select></div><textarea id="w_txt" rows="8"></textarea><div class="row" style="margin-top:8px"><button type="button" class="btn sm wa" id="w_send">'+WA_SVG+'Ouvrir WhatsApp</button><button type="button" class="btn sm" id="w_copy">Copier le texte</button><span class="s" id="w_to" style="color:var(--muted);font-size:.82rem"></span></div></div>'
    + '<div id="b_err"></div>'
    + '<div class="row spread"><div class="row">'+(!isNew?(b.status==="annulee"?'<button type="button" class="btn sm" id="b_restore"'+dis()+'>Rétablir</button>':'<button type="button" class="btn sm" id="b_cancel"'+dis()+'>Annuler la réservation</button>')+'<button type="button" class="btn sm danger" id="b_del"'+dis()+'>Supprimer</button>':'')+'</div><button class="btn primary" type="submit"'+dis()+'>Enregistrer</button></div></form>';
   openSheet(html, sh=>{
@@ -730,9 +759,14 @@ function bookingSheet(b){
       g("newClient").hidden = g("b_client").value!=="__new";
       const n = nights(g("b_in").value||today(), g("b_out").value||today());
       const ad0 = Math.max(1,Number(g("b_guests").value)||1), kd0 = Math.max(0,Number(g("b_kids").value)||0), pr0 = Number(g("b_price").value)||0;
-      b.total = n * pr0 * (mode==="personne" ? ad0 + kd0*0.5 : 1);
+      const lodging = n * pr0 * (mode==="personne" ? ad0 + kd0*0.5 : 1), exs = extrasSum(b);
+      b.total = lodging + exs;
       const p = paid(b);
-      g("b_sum").innerHTML = (mode==="personne" ? '<div><span>Adultes : '+n+' nuit(s) × '+ad0+' × '+dt(pr0)+'</span><span class="num">'+dt(n*ad0*pr0)+'</span></div>'+(kd0?'<div><span>Enfants : '+n+' nuit(s) × '+kd0+' × '+dt(pr0/2)+'</span><span class="num">'+dt(n*kd0*pr0/2)+'</span></div>':'')+'<div><span>Total séjour</span><span class="num">'+dt(b.total)+'</span></div>' : '<div><span>'+n+' nuit(s) × '+dt(pr0)+'</span><span class="num">'+dt(b.total)+'</span></div>')+'<div><span>Déjà payé</span><span class="num">'+dt(p)+'</span></div><div class="big"><span>Reste à payer</span><span class="num">'+dt(Math.max(0,b.total-p))+'</span></div>';
+      const stv = g("b_status") ? g("b_status").value : b.status;
+      if(g("b_dep_l")) g("b_dep_l").hidden = stv!=="option";
+      const dep = Math.round(b.total*(Number(S.settings.depositPct)||0)/100);
+      g("b_ex").innerHTML = (b.extras||[]).length ? (b.extras||[]).map((x,i)=>'<div class="pay num"><span>'+esc(x.name)+' × '+x.qty+' · '+dt(x.price)+'</span><span>'+dt(x.qty*x.price)+(S.canWrite?' <button type="button" class="btn sm ghost" data-rmex="'+i+'" aria-label="Retirer ce service">×</button>':'')+'</span></div>').join("") : '<div class="s" style="color:var(--muted);font-size:.85rem">Aucun service ajouté.</div>';
+      g("b_sum").innerHTML = (mode==="personne" ? '<div><span>Adultes : '+n+' nuit(s) × '+ad0+' × '+dt(pr0)+'</span><span class="num">'+dt(n*ad0*pr0)+'</span></div>'+(kd0?'<div><span>Enfants : '+n+' nuit(s) × '+kd0+' × '+dt(pr0/2)+'</span><span class="num">'+dt(n*kd0*pr0/2)+'</span></div>':'')+'<div><span>Hébergement</span><span class="num">'+dt(lodging)+'</span></div>' : '<div><span>Hébergement : '+n+' nuit(s) × '+dt(pr0)+'</span><span class="num">'+dt(lodging)+'</span></div>')+(exs?'<div><span>Services en plus</span><span class="num">'+dt(exs)+'</span></div>':'')+'<div class="big"><span>Total</span><span class="num">'+dt(b.total)+'</span></div>'+(stv==="option"&&dep>0?'<div><span>Acompte '+(S.settings.depositPct||0)+' % ('+dt(dep)+')</span><span class="num">'+(p>=dep?'reçu':'manque '+dt(dep-p))+'</span></div>':'')+'<div><span>Déjà payé</span><span class="num">'+dt(p)+'</span></div><div class="big"><span>Reste à payer</span><span class="num">'+dt(Math.max(0,b.total-p))+'</span></div>';
       const ci=g("b_in").value, co=g("b_out").value, rid=g("b_room").value;
       const clash = ci&&co ? conflicts(rid,ci,co,b.id) : [];
       const r = room(rid), gu = (Number(g("b_guests").value)||1) + (Number(g("b_kids").value)||0);
@@ -740,16 +774,73 @@ function bookingSheet(b){
       if(r && g("b_baby").checked && !r.babyBed) w += '<div class="note warn">'+esc(r.name)+' n\'est pas prévue pour un lit bébé.</div>';
       if(r && r.capacity && gu>r.capacity) w += '<div class="note warn">'+esc(r.name)+' accueille '+r.capacity+' personnes maximum.</div>';
       g("b_warn").innerHTML = w;
+      if(!wEdited) g("w_txt").value = waText();
       g("b_pays").innerHTML = (b.payments||[]).length ? b.payments.map((p,i)=>'<div class="pay num"><span>'+fmtD(p.date)+' · '+esc(p.method)+'</span><span>'+dt(p.amount)+(S.canWrite?' <button type="button" class="btn sm ghost" data-rmpay="'+i+'" aria-label="Retirer ce paiement">×</button>':'')+'</span></div>').join("") : '<div class="s" style="color:var(--muted);font-size:.85rem">Aucun paiement pour l\'instant.</div>';
     };
     g("b_room").addEventListener("change",()=>{ const r=room(g("b_room").value); if(r){ mode=roomMode(r); g("b_price").value=r.price||0; } sync(); });
-    g("b_in").addEventListener("change",()=>{ if(g("b_out").value<=g("b_in").value) g("b_out").value=addDays(g("b_in").value,1); sync(); });
+    g("b_in").addEventListener("change",()=>{ if(g("b_out").value<=g("b_in").value) g("b_out").value=addDays(g("b_in").value,1);
+      if(isNew && g("b_depby")){ const lim=addDays(today(), Number(S.settings.depositDays)||3), ci=g("b_in").value; g("b_depby").value = ci && lim>=ci ? (addDays(ci,-1)>today()?addDays(ci,-1):today()) : lim; } sync(); });
     ["b_out","b_price","b_guests","b_client"].forEach(id=>g(id).addEventListener("input",sync));
     g("b_baby").addEventListener("change",sync);
     if(g("b_ics")) g("b_ics").addEventListener("click",()=>{ const x={...b, arrivalTime:g("b_time").value||"14:00"}; downloadIcs([x], "arrivee-"+b.checkIn+".ics"); });
     sh.querySelectorAll("[data-step]").forEach(btn=>btn.addEventListener("click",()=>{ const i=g(btn.dataset.t), mn=Number(i.min)||0; i.value=Math.max(mn,Math.min(30,(Number(i.value)||0)+Number(btn.dataset.step))); sync(); }));
     g("b_kids").addEventListener("input",sync);
     g("b_client").addEventListener("change",sync);
+    let wEdited = false;
+    const curClient = () => { const v=g("b_client").value; if(v==="__new") return {name:g("nc_name").value.trim(), phone:g("nc_phone").value.trim()}; return client(v)||{}; };
+    const waText = () => {
+      const c=curClient(), r=room(g("b_room").value), ci=g("b_in").value, co=g("b_out").value, n=nights(ci||today(),co||today());
+      const ad=Math.max(1,Number(g("b_guests").value)||1), kd=Math.max(0,Number(g("b_kids").value)||0), p=paid(b), stv=g("b_status")?g("b_status").value:b.status;
+      const dep=Math.round(b.total*(Number(S.settings.depositPct)||0)/100), depBy=g("b_depby")?g("b_depby").value:"", ST=S.settings, tm=g("b_time").value||ST.checkinTime||"14:00";
+      const hi = "Bonjour"+(firstName(c.name)?" "+firstName(c.name):"")+",";
+      const pers = ad+" adulte"+(ad>1?"s":"")+(kd?" et "+kd+" enfant"+(kd>1?"s":""):"");
+      const lines = [];
+      const tpl = g("w_tpl").value;
+      if(tpl==="confirmation"){
+        lines.push(hi, "", "Merci pour votre réservation à Dar Salma.", "", "Hébergement : "+(r?r.name:""), "Dates : du "+(ci?fmtLong(ci):"")+" au "+(co?fmtLong(co):"")+" ("+n+" nuit"+(n>1?"s":"")+")", "Voyageurs : "+pers);
+        (b.extras||[]).forEach(x=>lines.push("Service : "+x.name+" × "+x.qty));
+        lines.push("Montant total : "+dt(b.total));
+        if(stv==="option" && dep>p) lines.push("", "Pour confirmer votre réservation, merci de verser un acompte de "+dt(dep-p)+(depBy?" avant le "+fmtLong(depBy):"")+".");
+        else if(p>0 && b.total-p>0) lines.push("Déjà réglé : "+dt(p)+" · reste à régler à l'arrivée : "+dt(b.total-p));
+        else if(p>0) lines.push("Votre séjour est entièrement réglé. Merci !");
+        lines.push("", "Arrivée à partir de "+tm+", départ avant "+(ST.checkoutTime||"12:00")+".");
+        if(ST.address) lines.push("Adresse : "+ST.address);
+        lines.push("", "Au plaisir de vous accueillir,", "Dar Salma"+(ST.housePhone?" · "+ST.housePhone:""));
+      } else if(tpl==="acompte"){
+        lines.push(hi, "");
+        if(stv==="option" && dep>p) lines.push("Petit rappel pour votre séjour à Dar Salma du "+fmtD(ci)+" au "+fmtD(co)+" : l'acompte de "+dt(dep-p)+" reste à régler"+(depBy?" avant le "+fmtLong(depBy):"")+" pour confirmer la réservation.");
+        else if(b.total-p>0) lines.push("Petit rappel pour votre séjour à Dar Salma du "+fmtD(ci)+" au "+fmtD(co)+" : il reste "+dt(b.total-p)+" à régler sur un total de "+dt(b.total)+".");
+        else lines.push("Votre séjour à Dar Salma du "+fmtD(ci)+" au "+fmtD(co)+" est entièrement réglé. Merci !");
+        lines.push("", "Merci et à bientôt,", "Dar Salma");
+      } else if(tpl==="arrivee"){
+        const when = ci===addDays(today(),1) ? "demain" : ci===today() ? "aujourd'hui" : "le "+fmtLong(ci);
+        lines.push(hi, "", "Nous vous attendons "+when+" à Dar Salma, à partir de "+tm+".");
+        if(ST.address) lines.push("Adresse : "+ST.address);
+        if(ST.instructions) lines.push("", ST.instructions);
+        if(ST.wifi) lines.push("", "Wi-Fi : "+ST.wifi);
+        if(b.total-p>0) lines.push("", "Reste à régler sur place : "+dt(b.total-p)+".");
+        lines.push("", "N'hésitez pas à nous écrire pour toute question.", "Dar Salma"+(ST.housePhone?" · "+ST.housePhone:""));
+      } else {
+        lines.push(hi, "", "Merci d'avoir séjourné à Dar Salma. Ce fut un plaisir de vous accueillir.", "Si vous avez apprécié votre séjour, un petit avis nous aiderait beaucoup.", "", "Au plaisir de vous revoir,", "Dar Salma");
+      }
+      const num = waNumber(c.phone); g("w_to").textContent = num ? "Envoi à "+(c.phone||"") : "Pas de téléphone : vous choisirez le contact dans WhatsApp";
+      return lines.join("\n");
+    };
+    g("w_tpl").addEventListener("change",()=>{ wEdited=false; g("w_txt").value=waText(); });
+    g("w_txt").addEventListener("input",()=>{ wEdited=true; });
+    g("w_send").addEventListener("click",()=>{ const num=waNumber(curClient().phone); const a=document.createElement("a"); a.href="https://wa.me/"+num+"?text="+encodeURIComponent(g("w_txt").value); a.target="_blank"; a.rel="noopener"; document.body.appendChild(a); a.click(); a.remove(); });
+    g("w_copy").addEventListener("click", async()=>{ try{ await navigator.clipboard.writeText(g("w_txt").value); toast("Texte copié"); }catch(x){ g("w_txt").select(); toast("Sélectionnez puis copiez le texte"); } });
+    ["nc_name","nc_phone","b_time","b_depby"].forEach(id=>{ if(g(id)) g(id).addEventListener("input",sync); });
+    if(g("b_status")) g("b_status").addEventListener("change",sync);
+    if(g("x_name")){
+      const xfill = () => { const v=g("x_name").value; g("x_other").hidden = v!=="__autre"; if(v!=="__autre"){ const c=(S.settings.catalog||[])[Number(v)]; g("x_price").value = c && c.price ? c.price : ""; } };
+      g("x_name").addEventListener("change",xfill); xfill();
+      g("x_add").addEventListener("click",()=>{ const v=g("x_name").value, c=v==="__autre"?null:(S.settings.catalog||[])[Number(v)];
+        const name = v==="__autre" ? g("x_other").value.trim() : (c?c.name:""); const qty=Math.max(1,Number(g("x_qty").value)||1), price=Number(g("x_price").value)||0;
+        if(!name){ g("x_other").focus(); return; } if(!(price>0)){ g("x_price").focus(); toast("Indiquez le prix du service"); return; }
+        b.extras=(b.extras||[]).concat([{name, qty, price}]); g("x_qty").value=1; if(v==="__autre") g("x_other").value=""; sync(); });
+      g("b_ex").addEventListener("click",e=>{ const i=e.target.dataset.rmex; if(i!=null){ b.extras.splice(Number(i),1); sync(); } });
+    }
     g("p_add").addEventListener("click",()=>{ const a=Number(g("p_amt").value); if(!(a>0)){ g("p_amt").focus(); return; } b.payments=(b.payments||[]).concat([{amount:a,method:g("p_meth").value,date:g("p_date").value||today()}]); g("p_amt").value=""; sync(); });
     g("b_pays").addEventListener("click",e=>{ const i=e.target.dataset.rmpay; if(i!=null){ b.payments.splice(Number(i),1); sync(); } });
     if(g("b_cancel")) g("b_cancel").addEventListener("click", async()=>{ b.status="annulee"; if(await save("bookings",b.id,strip(b))){ closeSheet(); toast("Réservation annulée"); } });
@@ -794,8 +885,10 @@ function bookingSheet(b){
         const clash = conflicts(rid,ci,co,b.id);
         if(clash.length && b.status!=="annulee"){ const x=clash[0]; return err((isHouse(rid)?"La maison entière n'est pas libre : "+esc(room(x.roomId)?.name||"une chambre"):esc(room(x.roomId)?.name||"Cette chambre"))+" est déjà réservée du "+fmtD(x.checkIn)+" au "+fmtD(x.checkOut)+" ("+esc(client(x.clientId)?.name||"")+"). Choisissez une autre chambre ou d'autres dates."); } }
       Object.assign(b,{clientId:cid, roomId:g("b_room").value, adults:Math.max(1,Number(g("b_guests").value)||1), children:Math.max(0,Number(g("b_kids").value)||0), guests:Math.max(1,Number(g("b_guests").value)||1)+Math.max(0,Number(g("b_kids").value)||0), babyBed:g("b_baby").checked, arrivalTime:g("b_time").value||"14:00", checkIn:g("b_in").value, checkOut:g("b_out").value, pricePerNight:Number(g("b_price").value)||0, source:g("b_source").value, notes:g("b_notes").value.trim()});
-      b.priceMode = mode; b.total = nights(b.checkIn,b.checkOut)*b.pricePerNight*(mode==="personne"?b.adults+b.children*0.5:1); delete b.example;
-      if(await save("bookings",b.id,strip(b))){ const n=pics.filter(p=>!p.saved||p.del).length; if(n) toast("Enregistrement des photos…"); await savePics(cid); closeSheet(); toast("Réservation enregistrée"); }
+      b.priceMode = mode; b.total = nights(b.checkIn,b.checkOut)*b.pricePerNight*(mode==="personne"?b.adults+b.children*0.5:1) + extrasSum(b); delete b.example;
+      if(g("b_status")){ b.status = g("b_status").value; b.depositBy = g("b_depby").value||""; }
+      let autoConf = false; if(b.status==="option" && depositDue(b)>0 && paid(b)>=depositDue(b)){ b.status="confirmee"; autoConf=true; }
+      if(await save("bookings",b.id,strip(b))){ const n=pics.filter(p=>!p.saved||p.del).length; if(n) toast("Enregistrement des photos…"); await savePics(cid); closeSheet(); toast(autoConf?"Acompte reçu : réservation confirmée":"Réservation enregistrée"); }
     });
     sync();
   });
@@ -838,6 +931,30 @@ function expenseSheet(x){
   });
 }
 
+function settingsSheet(){
+  const st = JSON.parse(JSON.stringify(S.settings)); st.catalog = st.catalog||[];
+  const inp = (id,label,val,type,ph) => '<label>'+label+'<input id="'+id+'" type="'+(type||"text")+'" value="'+esc(val)+'"'+(ph?' placeholder="'+esc(ph)+'"':'')+'></label>';
+  openSheet('<form class="f" id="sf"><div class="row spread"><h2>Paramètres de la maison</h2><button type="button" class="btn ghost" data-act="close">Fermer</button></div>'
+    + inp("s_addr","Adresse",st.address,"text","Rue, ville") + inp("s_phone","Téléphone de la maison",st.housePhone,"tel")
+    + '<div class="g2">'+inp("s_in","Arrivée à partir de",st.checkinTime,"time")+inp("s_out","Départ avant",st.checkoutTime,"time")+'</div>'
+    + '<div class="g2">'+inp("s_pct","Acompte demandé (%)",st.depositPct,"number")+inp("s_days","Délai pour l\'acompte (jours)",st.depositDays,"number")+'</div>'
+    + inp("s_wifi","Wi-Fi (nom et mot de passe)",st.wifi,"text","Ex. DarSalma / motdepasse")
+    + '<label>Consignes d\'arrivée (envoyées par WhatsApp)<textarea id="s_instr" rows="3" placeholder="Ex. Sonnez à la porte bleue, parking dans la rue derrière…">'+esc(st.instructions)+'</textarea></label>'
+    + '<div><h3>Services en plus et leurs prix</h3><div id="s_cat" style="display:grid;gap:8px"></div><button type="button" class="btn sm" id="s_catadd" style="margin-top:8px">+ Ajouter un service</button></div>'
+    + '<div id="s_err"></div><div class="row spread"><span></span><button class="btn primary" type="submit"'+dis()+'>Enregistrer</button></div></form>', sh=>{
+    const g=id=>$("#"+id,sh);
+    const draw=()=>{ g("s_cat").innerHTML = st.catalog.map((c,i)=>'<div class="catrow"><input data-ci="'+i+'" data-k="name" value="'+esc(c.name)+'" placeholder="Nom" aria-label="Nom du service"><input data-ci="'+i+'" data-k="price" type="number" min="0" step="0.5" value="'+esc(c.price||"")+'" placeholder="Prix DT" aria-label="Prix"><input data-ci="'+i+'" data-k="unit" value="'+esc(c.unit||"")+'" placeholder="par personne…" aria-label="Unité"><button type="button" class="btn sm ghost" data-cdel="'+i+'" aria-label="Supprimer ce service">×</button></div>').join("") || '<div class="s" style="color:var(--muted);font-size:.85rem">Aucun service.</div>'; };
+    draw();
+    g("s_cat").addEventListener("input",e=>{ const i=e.target.dataset.ci; if(i==null) return; const k=e.target.dataset.k; st.catalog[Number(i)][k] = k==="price" ? Number(e.target.value)||0 : e.target.value; });
+    g("s_cat").addEventListener("click",e=>{ const i=e.target.dataset.cdel; if(i!=null){ st.catalog.splice(Number(i),1); draw(); } });
+    g("s_catadd").addEventListener("click",()=>{ st.catalog.push({name:"",price:0,unit:""}); draw(); const l=g("s_cat").querySelectorAll('[data-k="name"]'); l[l.length-1].focus(); });
+    g("sf").addEventListener("submit", async e=>{ e.preventDefault();
+      const data = {address:g("s_addr").value.trim(), housePhone:g("s_phone").value.trim(), checkinTime:g("s_in").value||"14:00", checkoutTime:g("s_out").value||"12:00",
+        depositPct:Math.max(0,Math.min(100,Number(g("s_pct").value)||0)), depositDays:Math.max(0,Number(g("s_days").value)||0), wifi:g("s_wifi").value.trim(), instructions:g("s_instr").value.trim(),
+        catalog: st.catalog.filter(c=>String(c.name||"").trim()).map(c=>({name:String(c.name).trim(), price:Number(c.price)||0, unit:String(c.unit||"").trim()}))};
+      if(await save("settings","general",data)){ closeSheet(); toast("Paramètres enregistrés"); } });
+  });
+}
 function roomsSheet(){
   openSheet('<div class="f"><div class="row spread"><h2>Chambres et formules</h2><button type="button" class="btn ghost" data-act="close">Fermer</button></div>'
     + '<p style="margin:0;color:var(--muted);font-size:.9rem">Touchez une chambre pour modifier son nom, son prix, sa capacité, ses lits ou ses informations.</p>'
@@ -888,6 +1005,7 @@ document.addEventListener("click", async e=>{
   if(a==="new-room") return roomSheet(null);
   if(a==="edit-room"){ const r=room(id); if(r) roomSheet(r); return; }
   if(a==="rooms-sheet") return roomsSheet();
+  if(a==="settings") return settingsSheet();
   if(a==="ics-all") return downloadIcs(upcomingArrivals(24), "arrivees-24h.ics");
   if(a==="ics-upcoming"){ const t=today(); return downloadIcs(activeBookings().filter(b=>b.checkIn>=t).sort((x,y)=>x.checkIn.localeCompare(y.checkIn)), "arrivees-a-venir.ics"); }
   if(a==="cycle-status"){ const r=room(id); if(!r) return; const order=["propre","a_nettoyer","reparation"]; const nx=order[(order.indexOf(r.status||"propre")+1)%3]; await save("rooms",r.id,{...strip(r),status:nx}); return; }
