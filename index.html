@@ -220,6 +220,10 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 .btn.wa svg{width:16px;height:16px;fill:currentColor}
 .phone{display:grid;grid-template-columns:minmax(110px,40%) 1fr;gap:8px}
 .f .phone select,.f .phone input{min-width:0}
+.pillbtn{display:inline-flex;align-items:center;gap:3px;padding:4px 8px 4px 11px;border-radius:999px;font-size:.8rem;font-weight:700;border:1px solid transparent;cursor:pointer;white-space:nowrap}
+.pillbtn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.pillbtn.ok{background:var(--ok-soft);color:var(--ok)}.pillbtn.bad{background:var(--bad-soft);color:var(--bad)}
+.pillbtn:hover{border-color:currentColor}
 .pics{display:flex;flex-wrap:wrap;gap:8px}
 .pic{position:relative;width:84px;height:84px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--sunk);cursor:zoom-in;padding:0}
 .pic img{width:100%;height:100%;object-fit:cover;display:block}
@@ -272,12 +276,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=22"></script>
+<script src="firebase-config.js?v=23"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "22";
+const APP_VERSION = "23";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -334,6 +338,10 @@ const roomDesc = r => [r.beds==="separes"?"2 lits séparés":r.beds==="double"?"
 const activeBookings = () => S.bookings.filter(b=>b.status!=="annulee");
 const roomMode = r => (!r || r.wholeHouse) ? "nuit" : (r.priceMode||"personne");
 const priceLabel = r => dt(r.price)+(roomMode(r)==="personne"?" / pers. / nuit":" / nuit");
+const AUTO_SINCE = "2026-10-18T21:00:00";
+const departAt = b => new Date(b.checkOut+"T"+((S.settings&&S.settings.checkoutTime)||"12:00")+":00");
+function lastDeparture(r){ const now=new Date(); let best=null; activeBookings().forEach(b=>{ if(b.roomId===r.id || (isHouse(b.roomId) && !r.wholeHouse)){ const d=departAt(b); if(d<=now && (!best||d>best)) best=d; } }); return best; }
+function roomState(r){ if(r.status==="reparation") return "reparation"; const ld=lastDeparture(r), since=new Date(r.cleanedAt||AUTO_SINCE); if(ld && ld>since) return "a_nettoyer"; return r.status==="a_nettoyer" ? "a_nettoyer" : "propre"; }
 const isHouse = id => { const r=room(id); return !!(r&&r.wholeHouse); };
 const units = () => S.rooms.filter(r=>!r.wholeHouse);
 const overlaps = (x, rid, ci, co) => x.checkIn<co && ci<x.checkOut && (x.roomId===rid || isHouse(x.roomId) || isHouse(rid));
@@ -481,12 +489,12 @@ function vJour(){
   h += '<div class="cols"><div><h3>Arrivées</h3><div class="list">'+(arr.length?arr.map(b=>bookingItem(b)).join(""):'<div class="empty">Aucune arrivée aujourd\'hui.</div>')+'</div>';
   if(arrTom.length) h += '<h3 style="margin-top:16px">Demain</h3><div class="list">'+arrTom.map(b=>bookingItem(b)).join("")+'</div>';
   h += '<h3 style="margin-top:16px">Départs</h3><div class="list">'+(dep.length?dep.map(b=>bookingItem(b)).join(""):'<div class="empty">Aucun départ aujourd\'hui.</div>')+'</div></div>';
-  h += '<div><div class="row spread" style="margin-bottom:8px"><h3 style="margin:0">Ménage et état des chambres</h3>'+(S.canWrite?'<button class="btn sm ghost edit" data-act="rooms-sheet"><svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>Modifier les chambres</button>':'')+'</div><div class="list">'+(units().length?units().map(r=>{
+  h += '<div><div class="row spread" style="margin-bottom:8px"><h3 style="margin:0">Ménage et état des chambres'+(units().filter(r=>roomState(r)==="a_nettoyer").length?' · '+units().filter(r=>roomState(r)==="a_nettoyer").length+' à nettoyer':'')+'</h3>'+(S.canWrite?'<button class="btn sm ghost edit" data-act="rooms-sheet"><svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>Modifier les chambres</button>':'')+'</div><div class="list">'+(units().length?units().map(r=>{
       const o = occupying(r.id,t); const c = o?client(o.clientId):null;
       const leaving = dep.find(b=>b.roomId===r.id || isHouse(b.roomId));
-      const st = r.status||"propre";
+      const st = roomState(r), ld = lastDeparture(r), autoDirty = st==="a_nettoyer" && ld && ld > new Date(r.cleanedAt||AUTO_SINCE);
       const pill = st==="propre"?'<span class="pill ok">Propre</span>':st==="a_nettoyer"?'<span class="pill warn">À nettoyer</span>':'<span class="pill bad">Réparation</span>';
-      return '<div class="item'+(S.canWrite?' click" data-act="edit-room" data-id="'+r.id:'')+'"><span class="roomtag">'+esc(r.short||r.name)+'</span><div class="grow"><div class="t">'+esc(r.name)+'</div><div class="s">'+(o?'Occupée'+(isHouse(o.roomId)?' (maison entière)':'')+' · '+esc(c?c.name:"")+' jusqu\'au '+fmtD(o.checkOut)+(o.babyBed?' · lit bébé':''):leaving?'Libérée ce matin':'Libre ce soir')+(r.beds==="separes"?' · lits séparés':'')+'</div></div>'+pill+(S.canWrite?'<button class="btn sm" data-act="cycle-status" data-id="'+r.id+'" aria-label="Changer l\'état">Changer</button>':'')+'</div>';
+      return '<div class="item'+(S.canWrite?' click" data-act="edit-room" data-id="'+r.id:'')+'"><span class="roomtag">'+esc(r.short||r.name)+'</span><div class="grow"><div class="t">'+esc(r.name)+'</div><div class="s">'+(o?'Occupée'+(isHouse(o.roomId)?' (maison entière)':'')+' · '+esc(c?c.name:"")+' jusqu\'au '+fmtD(o.checkOut)+(o.babyBed?' · lit bébé':''):leaving?(autoDirty?'Départ fait · ménage à faire':'Départ aujourd\'hui à '+(S.settings.checkoutTime||"12:00")):'Libre ce soir')+(autoDirty&&!leaving?' · depuis le départ du '+fmtD(toISO(ld)):'')+(r.beds==="separes"?' · lits séparés':'')+'</div></div>'+(!S.canWrite ? pill : st==="a_nettoyer" ? '<button class="btn sm primary" data-act="cycle-status" data-id="'+r.id+'">Marquer propre</button>' : '<button class="pillbtn '+(st==="propre"?'ok':'bad')+'" data-act="cycle-status" data-id="'+r.id+'" title="'+(st==="propre"?'Toucher pour marquer à nettoyer':'Toucher quand la réparation est faite')+'">'+(st==="propre"?'Propre':'Réparation')+'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg></button>')+'</div>';
     }).join(""):'<div class="empty">Aucune chambre. Ajoutez-les dans Finances › Chambres.</div>')+'</div>';
   h += '<h3 style="margin-top:16px">Soldes à encaisser</h3><div class="list">'+(due.length?due.map(b=>bookingItem(b)).join(""):'<div class="empty">Tout est encaissé.</div>')+'</div></div></div>';
   return h;
@@ -976,14 +984,14 @@ function roomSheet(r){
     + (r.wholeHouse?'':'<label>Type de tarif<select id="r_mode">'+opt("personne","Par personne et par nuit",roomMode(r))+opt("nuit","Par nuit (chambre entière)",roomMode(r))+'</select></label>')
     + '<div class="g2"><label><span id="r_price_l">'+(roomMode(r)==="personne"?"Prix / pers. / nuit (DT)":"Prix par nuit (DT)")+'</span><input id="r_price" type="number" min="0" step="0.5" value="'+esc(r.price)+'"></label><label>Capacité (pers.)<input id="r_cap" type="number" min="1" value="'+esc(r.capacity)+'"></label></div>'
     + '<div class="g2"><label>Lits<select id="r_beds">'+opt("double","Lit double",r.beds)+opt("separes","2 lits séparés",r.beds)+opt("autre","Autre",r.beds)+'</select></label><label style="display:flex;align-items:center;gap:8px;color:var(--fg);align-self:end;padding-bottom:9px"><input id="r_baby" type="checkbox" style="width:auto"'+(r.babyBed?' checked':'')+'> Lit bébé possible</label></div>'
-    + '<label>État<select id="r_status">'+opt("propre","Propre",r.status)+opt("a_nettoyer","À nettoyer",r.status)+opt("reparation","Réparation",r.status)+'</select></label>'
+    + '<label>État<select id="r_status">'+opt("propre","Propre",roomState(r))+opt("a_nettoyer","À nettoyer",roomState(r))+opt("reparation","Réparation",roomState(r))+'</select></label>'
     + '<label>Informations<textarea id="r_note" rows="3" placeholder="Ex. vue sur le patio, salle de bain privée, climatisation, étage">'+esc(r.note)+'</textarea></label>'
     + '<div id="r_err"></div><div class="row spread"><div>'+(!isNew?'<button type="button" class="btn sm danger" id="r_del"'+dis()+'>Supprimer</button>':'')+'</div><button class="btn primary" type="submit"'+dis()+'>Enregistrer</button></div></form>', sh=>{
     const g=id=>$("#"+id,sh);
     if(g("r_mode")) g("r_mode").addEventListener("change",()=>{ g("r_price_l").textContent = g("r_mode").value==="personne" ? "Prix / pers. / nuit (DT)" : "Prix par nuit (DT)"; });
     if(g("r_del")) armDelete(g("r_del"), async()=>{ if(S.bookings.some(b=>b.roomId===r.id && b.status!=="annulee")){ g("r_err").innerHTML='<div class="note warn">Cette chambre a des réservations. Déplacez-les ou supprimez-les d\'abord.</div>'; return; } if(await remove("rooms",r.id)){ closeSheet(); toast("Chambre supprimée"); } });
     g("rf").addEventListener("submit", async e=>{ e.preventDefault(); const name=g("r_name").value.trim(); if(!name){ g("r_err").innerHTML='<div class="note bad">Donnez un nom à la chambre.</div>'; return; }
-      Object.assign(r,{name, short:g("r_short").value.trim()||name.slice(0,3), price:Number(g("r_price").value)||0, capacity:Number(g("r_cap").value)||1, priceMode: g("r_mode") ? g("r_mode").value : "nuit", beds:g("r_beds").value, babyBed:g("r_baby").checked, status:g("r_status").value, note:g("r_note").value.trim()}); delete r.example;
+      Object.assign(r,{name, short:g("r_short").value.trim()||name.slice(0,3), price:Number(g("r_price").value)||0, capacity:Number(g("r_cap").value)||1, priceMode: g("r_mode") ? g("r_mode").value : "nuit", beds:g("r_beds").value, babyBed:g("r_baby").checked, status:g("r_status").value, note:g("r_note").value.trim()}); if(r.status==="propre" && roomState(room(r.id)||r)!=="propre") r.cleanedAt=new Date().toISOString(); delete r.example;
       if(await save("rooms",r.id,strip(r))){ closeSheet(); toast("Chambre enregistrée"); } });
   });
 }
@@ -1016,7 +1024,8 @@ document.addEventListener("click", async e=>{
   if(a==="settings") return settingsSheet();
   if(a==="ics-all") return downloadIcs(upcomingArrivals(24), "arrivees-24h.ics");
   if(a==="ics-upcoming"){ const t=today(); return downloadIcs(activeBookings().filter(b=>b.checkIn>=t).sort((x,y)=>x.checkIn.localeCompare(y.checkIn)), "arrivees-a-venir.ics"); }
-  if(a==="cycle-status"){ const r=room(id); if(!r) return; const order=["propre","a_nettoyer","reparation"]; const nx=order[(order.indexOf(r.status||"propre")+1)%3]; await save("rooms",r.id,{...strip(r),status:nx}); return; }
+  if(a==="cycle-status"){ const r=room(id); if(!r) return; const cur=roomState(r); const nx = cur==="propre" ? "a_nettoyer" : "propre";
+    const data={...strip(r), status:nx}; if(nx==="propre") data.cleanedAt=new Date().toISOString(); if(await save("rooms",r.id,data)) toast(nx==="propre"?r.name+" est propre":r.name+" à nettoyer"); return; }
   if(a==="cal-prev"){ S.calStart=addDays(S.calStart,-7); return render(); }
   if(a==="cal-next"){ S.calStart=addDays(S.calStart,7); return render(); }
   if(a==="cal-today"){ S.calStart=addDays(today(),-1); return render(); }
