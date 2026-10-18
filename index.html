@@ -103,7 +103,8 @@ h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--mu
 .roomtag{display:inline-grid;place-items:center;min-width:34px;height:34px;padding:0 6px;border-radius:8px;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:.85rem}
 /* calendar */
 .cal{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
-.cal table{border-collapse:collapse;min-width:720px;width:100%}
+.cal table{border-collapse:collapse;min-width:720px;width:100%;table-layout:fixed}
+.cal thead th.room{width:150px}
 .cal th,.cal td{border-left:1px solid var(--line);border-top:1px solid var(--line);padding:0;text-align:center;font-size:.78rem}
 .cal thead th{border-top:none;padding:6px 2px;color:var(--muted);font-weight:600}
 .cal thead th.today{color:var(--accent)}
@@ -113,6 +114,9 @@ h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--mu
 .cal th.room{border-left:none;text-align:left;padding:8px 10px;white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1;font-size:.85rem;color:var(--fg)}
 .cell{width:100%;height:42px;border:none;background:none;cursor:pointer;padding:0}
 .cell:hover{background:var(--sunk)}
+.blk{display:block;height:42px;background:repeating-linear-gradient(135deg,var(--sunk) 0 6px,transparent 6px 12px);cursor:not-allowed}
+.cal tr.house th.room{color:var(--accent);font-weight:800}
+.cal tr.house td,.cal tr.house th{border-bottom:2px solid var(--line)}
 .bk{display:block;height:30px;margin:0 -1px;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:.72rem;line-height:30px;overflow:hidden;white-space:nowrap;text-align:left;padding-left:6px;cursor:pointer;border:none;width:calc(100% + 2px)}
 .bk.unpaid{background:var(--jasmin);color:var(--surface)}
 .bk.start{border-radius:6px 0 0 6px;margin-left:3px;width:calc(100% - 2px)}
@@ -225,12 +229,12 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.88
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=13"></script>
+<script src="firebase-config.js?v=14"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "13";
+const APP_VERSION = "14";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -271,7 +275,12 @@ const room = id => S.rooms.find(r=>r.id===id);
 const client = id => S.clients.find(c=>c.id===id);
 const roomDesc = r => [r.beds==="separes"?"2 lits séparés":r.beds==="double"?"Lit double":"", (r.capacity||2)+" pers.", r.babyBed?"lit bébé possible":"", r.note||""].filter(Boolean).map(esc).join(" · ");
 const activeBookings = () => S.bookings.filter(b=>b.status!=="annulee");
-const occupying = (roomId, day) => activeBookings().find(b=>b.roomId===roomId && b.checkIn<=day && day<b.checkOut);
+const isHouse = id => { const r=room(id); return !!(r&&r.wholeHouse); };
+const units = () => S.rooms.filter(r=>!r.wholeHouse);
+const overlaps = (x, rid, ci, co) => x.checkIn<co && ci<x.checkOut && (x.roomId===rid || isHouse(x.roomId) || isHouse(rid));
+const conflicts = (rid, ci, co, exceptId) => activeBookings().filter(x=>x.id!==exceptId && overlaps(x,rid,ci,co));
+const weight = b => isHouse(b.roomId) ? Math.max(1,units().length) : 1;
+const occupying = (roomId, day) => activeBookings().find(b=>(b.roomId===roomId || (isHouse(b.roomId) && !isHouse(roomId))) && b.checkIn<=day && day<b.checkOut);
 const hasExamples = () => [...S.rooms,...S.clients,...S.bookings,...S.expenses].some(x=>x.example);
 
 // ---------- db ----------
@@ -303,6 +312,7 @@ function sub(col, sortFn){
     S[col] = snap.docs.map(d=>({id:d.id, ...d.data()})).sort(sortFn||(()=>0));
     S.loaded[col]=true; S.cached = S.cached||{}; S.cached[col] = snap.metadata.fromCache; S.pending = S.pending||{}; S.pending[col] = snap.metadata.hasPendingWrites; syncLabel();
     if(col==="rooms" && snap.empty && !snap.metadata.fromCache && !S.seeded) seedRooms();
+    else if(col==="rooms" && !snap.empty && !snap.metadata.fromCache && !snap.docs.some(d=>d.data().wholeHouse) && !S.houseSeeded){ S.houseSeeded=true; const h={id:"maison", name:"Maison entière", short:"M", price:1000, capacity:15, wholeHouse:true, babyBed:true, status:"propre", note:"Toutes les chambres et le studio", order:0}; save("rooms",h.id,strip(h)); }
     render();
   }, err=>{
     const denied = err && err.code==="permission-denied";
@@ -313,6 +323,7 @@ function sub(col, sortFn){
 async function seedRooms(){
   S.seeded = true;
   const rooms = [1,2,3,4,5,6].map(n=>({id:"r"+n, name:"Chambre "+n, short:String(n), price:150, capacity:2, beds:"double", babyBed:true, status:"propre", note:"", order:n}));
+  rooms.push({id:"maison", name:"Maison entière", short:"M", price:1000, capacity:15, wholeHouse:true, babyBed:true, status:"propre", note:"Toutes les chambres et le studio", order:0});
   rooms.push({id:"r7", name:"Studio indépendant", short:"S", price:220, capacity:3, beds:"double", babyBed:true, status:"propre", note:"", order:7});
   for(const r of rooms) await save("rooms", r.id, strip(r));
 }
@@ -370,8 +381,8 @@ function render(){
   if(!S.canWrite) html += '<div class="banner"><span class="grow">Vous consultez en lecture seule. Demandez au propriétaire de vous donner le niveau « Contributeur » pour modifier.</span></div>';
   if(hasExamples() && S.canWrite) html += '<div class="banner"><span class="pill ex">Exemples</span><span class="grow">Les réservations, clients et dépenses marqués « exemple » servent à montrer l\'application. Les chambres sont modifiables dans Finances › Chambres.</span><button class="btn sm" data-act="clear-ex">Supprimer les exemples</button></div>';
   if(allLoaded){ const act=activeBookings(), seen=new Set();
-    act.forEach(a=>act.forEach(c=>{ if(a.id<c.id && a.roomId===c.roomId && a.checkIn<c.checkOut && c.checkIn<a.checkOut){ const k=a.id+c.id; if(!seen.has(k)){ seen.add(k);
-      html += '<div class="banner" style="background:var(--bad-soft)"><span class="grow"><b>Double réservation</b> sur '+esc(room(a.roomId)?.name||"")+' : '+esc(client(a.clientId)?.name||"")+' ('+fmtD(a.checkIn)+' → '+fmtD(a.checkOut)+') et '+esc(client(c.clientId)?.name||"")+' ('+fmtD(c.checkIn)+' → '+fmtD(c.checkOut)+'). Modifiez ou annulez l\'une des deux.</span><button class="btn sm" data-act="edit-booking" data-id="'+c.id+'">Ouvrir la plus récente</button></div>'; } } })); }
+    act.forEach(a=>act.forEach(c=>{ if(a.id<c.id && overlaps(c, a.roomId, a.checkIn, a.checkOut)){ const k=a.id+c.id; if(!seen.has(k)){ seen.add(k);
+      html += '<div class="banner" style="background:var(--bad-soft)"><span class="grow"><b>Double réservation</b> sur '+esc(room(a.roomId)?.name||"")+(c.roomId!==a.roomId?' / '+esc(room(c.roomId)?.name||""):'')+' : '+esc(client(a.clientId)?.name||"")+' ('+fmtD(a.checkIn)+' → '+fmtD(a.checkOut)+') et '+esc(client(c.clientId)?.name||"")+' ('+fmtD(c.checkIn)+' → '+fmtD(c.checkOut)+'). Modifiez ou annulez l\'une des deux.</span><button class="btn sm" data-act="edit-booking" data-id="'+c.id+'">Ouvrir la plus récente</button></div>'; } } })); }
   if(S.db && !allLoaded) html += '<div class="empty">Chargement des données…</div>';
   else html += ({jour:vJour, cal:vCal, resa:vResa, clients:vClients, fin:vFin, ana:vAna}[S.tab]||vJour)();
   m.innerHTML = '<div class="panel">'+html+'</div>';
@@ -387,25 +398,25 @@ function vJour(){
   const t = today();
   const arr = activeBookings().filter(b=>b.checkIn===t);
   const dep = activeBookings().filter(b=>b.checkOut===t);
-  const occ = S.rooms.filter(r=>occupying(r.id,t)).length;
+  const occ = units().filter(r=>occupying(r.id,t)).length;
   const due = activeBookings().filter(b=>balance(b)>0 && b.checkIn<=t);
   const dueSum = due.reduce((s,b)=>s+balance(b),0);
   const tom = addDays(t,1);
   const arrTom = activeBookings().filter(b=>b.checkIn===tom);
   let h = '<div class="row spread"><h2>'+fmtLong(t).replace(/^./,c=>c.toUpperCase())+'</h2><button class="btn primary" data-act="new-booking"'+(S.canWrite?'':' disabled')+'>+ Réservation</button></div>';
-  h += '<div class="stats"><div class="stat"><span>Chambres occupées ce soir</span><b class="num">'+occ+' / '+S.rooms.length+'</b></div>'
+  h += '<div class="stats"><div class="stat"><span>Chambres occupées ce soir</span><b class="num">'+occ+' / '+units().length+'</b></div>'
      + '<div class="stat"><span>Arrivées aujourd\'hui</span><b class="num">'+arr.length+'</b></div>'
      + '<div class="stat"><span>Départs aujourd\'hui</span><b class="num">'+dep.length+'</b></div>'
      + '<div class="stat"><span>À encaisser (séjours commencés)</span><b class="num">'+dt(dueSum)+'</b></div></div>';
   h += '<div class="cols"><div><h3>Arrivées</h3><div class="list">'+(arr.length?arr.map(b=>bookingItem(b)).join(""):'<div class="empty">Aucune arrivée aujourd\'hui.</div>')+'</div>';
   if(arrTom.length) h += '<h3 style="margin-top:16px">Demain</h3><div class="list">'+arrTom.map(b=>bookingItem(b)).join("")+'</div>';
   h += '<h3 style="margin-top:16px">Départs</h3><div class="list">'+(dep.length?dep.map(b=>bookingItem(b)).join(""):'<div class="empty">Aucun départ aujourd\'hui.</div>')+'</div></div>';
-  h += '<div><h3>Ménage et état des chambres</h3><div class="list">'+(S.rooms.length?S.rooms.map(r=>{
+  h += '<div><h3>Ménage et état des chambres</h3><div class="list">'+(units().length?units().map(r=>{
       const o = occupying(r.id,t); const c = o?client(o.clientId):null;
-      const leaving = dep.find(b=>b.roomId===r.id);
+      const leaving = dep.find(b=>b.roomId===r.id || isHouse(b.roomId));
       const st = r.status||"propre";
       const pill = st==="propre"?'<span class="pill ok">Propre</span>':st==="a_nettoyer"?'<span class="pill warn">À nettoyer</span>':'<span class="pill bad">Réparation</span>';
-      return '<div class="item"><span class="roomtag">'+esc(r.short||r.name)+'</span><div class="grow"><div class="t">'+esc(r.name)+'</div><div class="s">'+(o?'Occupée · '+esc(c?c.name:"")+' jusqu\'au '+fmtD(o.checkOut)+(o.babyBed?' · lit bébé':''):leaving?'Libérée ce matin':'Libre ce soir')+(r.beds==="separes"?' · lits séparés':'')+'</div></div>'+pill+(S.canWrite?'<button class="btn sm" data-act="cycle-status" data-id="'+r.id+'" aria-label="Changer l\'état">Changer</button>':'')+'</div>';
+      return '<div class="item"><span class="roomtag">'+esc(r.short||r.name)+'</span><div class="grow"><div class="t">'+esc(r.name)+'</div><div class="s">'+(o?'Occupée'+(isHouse(o.roomId)?' (maison entière)':'')+' · '+esc(c?c.name:"")+' jusqu\'au '+fmtD(o.checkOut)+(o.babyBed?' · lit bébé':''):leaving?'Libérée ce matin':'Libre ce soir')+(r.beds==="separes"?' · lits séparés':'')+'</div></div>'+pill+(S.canWrite?'<button class="btn sm" data-act="cycle-status" data-id="'+r.id+'" aria-label="Changer l\'état">Changer</button>':'')+'</div>';
     }).join(""):'<div class="empty">Aucune chambre. Ajoutez-les dans Finances › Chambres.</div>')+'</div>';
   h += '<h3 style="margin-top:16px">Soldes à encaisser</h3><div class="list">'+(due.length?due.map(b=>bookingItem(b)).join(""):'<div class="empty">Tout est encaissé.</div>')+'</div></div></div>';
   return h;
@@ -418,10 +429,12 @@ function vCal(){
   let h = '<div class="row spread"><h2>'+MOIS[sd.getMonth()].replace(/^./,c=>c.toUpperCase())+(sd.getMonth()!==ed.getMonth()?' – '+MOIS[ed.getMonth()]:'')+' '+ed.getFullYear()+'</h2><div class="row"><button class="btn sm" data-act="cal-prev" aria-label="Semaine précédente">←</button><button class="btn sm" data-act="cal-today">Aujourd\'hui</button><button class="btn sm" data-act="cal-next" aria-label="Semaine suivante">→</button></div></div>';
   h += '<div class="cal"><table><thead><tr><th class="room">Chambre</th>'+ds.map(d=>{const x=parse(d),we=x.getDay()===0||x.getDay()===6;return '<th class="'+(d===t?'today ':'')+(we?'we':'')+'">'+JOURS[x.getDay()]+'<span class="d">'+x.getDate()+'</span></th>';}).join("")+'</tr></thead><tbody>';
   S.rooms.forEach(r=>{
-    h += '<tr><th class="room">'+esc(r.name)+'</th>';
+    h += '<tr'+(r.wholeHouse?' class="house"':'')+'><th class="room">'+esc(r.name)+'</th>';
     ds.forEach(d=>{
       const b = occupying(r.id,d);
-      if(b){
+      const blocked = !b && (r.wholeHouse ? units().some(u=>occupying(u.id,d)) : false);
+      if(blocked){ h += '<td><span class="blk" data-tip="Maison entière indisponible : au moins une chambre est réservée le '+fmtD(d)+'"></span></td>'; }
+      else if(b){
         const isStart = b.checkIn===d || d===start, isEnd = addDays(d,1)===b.checkOut;
         const c = client(b.clientId);
         const label = (b.checkIn===d||d===start)?esc(c?c.name.split(" ")[0]:"?"):"";
@@ -431,7 +444,7 @@ function vCal(){
     h += '</tr>';
   });
   h += '</tbody></table></div>';
-  h += '<div class="legend"><span><i style="background:var(--accent)"></i>Payé</span><span><i style="background:var(--jasmin)"></i>Solde à encaisser</span><span>Touchez une case vide pour réserver.</span></div>';
+  h += '<div class="legend"><span><i style="background:var(--accent)"></i>Payé</span><span><i style="background:var(--jasmin)"></i>Solde à encaisser</span><span><i style="background:repeating-linear-gradient(135deg,var(--line) 0 3px,transparent 3px 6px)"></i>Maison entière indisponible</span><span>Touchez une case vide pour réserver.</span></div>';
   if(!S.rooms.length) h += '<div class="empty">Ajoutez vos chambres dans Finances › Chambres pour voir le calendrier.</div>';
   return h;
 }
@@ -473,8 +486,8 @@ function vFin(){
   const exps = S.expenses.filter(e=>inM(e.date));
   const dep = exps.reduce((s,e)=>s+(Number(e.amount)||0),0);
   const first = m+"-01", last = addDays(toISO(new Date(y,mo,1)),-1), dim = Number(last.slice(8));
-  let occN = 0; for(let i=0;i<dim;i++){ const d=addDays(first,i); occN += S.rooms.filter(r=>occupying(r.id,d)).length; }
-  const rate = S.rooms.length ? Math.round(occN/(S.rooms.length*dim)*100) : 0;
+  let occN = 0; for(let i=0;i<dim;i++){ const d=addDays(first,i); occN += units().filter(r=>occupying(r.id,d)).length; }
+  const rate = units().length ? Math.round(occN/(units().length*dim)*100) : 0;
   const byCat = {}; exps.forEach(e=>byCat[e.category||"Autre"]=(byCat[e.category||"Autre"]||0)+(Number(e.amount)||0));
   const prev = toISO(new Date(y,mo-2,1)).slice(0,7), next = toISO(new Date(y,mo,1)).slice(0,7);
   let h = '<div class="row spread"><h2>'+MOIS[mo-1].replace(/^./,c=>c.toUpperCase())+' '+y+'</h2><div class="row"><button class="btn sm" data-act="fin-month" data-m="'+prev+'" aria-label="Mois précédent">←</button><button class="btn sm" data-act="fin-month" data-m="'+today().slice(0,7)+'">Ce mois</button><button class="btn sm" data-act="fin-month" data-m="'+next+'" aria-label="Mois suivant">→</button></div></div>';
@@ -499,8 +512,8 @@ const dtShort = n => n>=10000 ? (Math.round(n/100)/10).toLocaleString("fr-FR")+"
 function stats(from, to){
   const act = activeBookings();
   let ca=0, nts=0;
-  act.forEach(b=>{ const k=nightsIn(b,from,to); if(k){ nts+=k; ca+=k*perNight(b); } });
-  const days = nights(from,to), cap = S.rooms.length*days;
+  act.forEach(b=>{ const k=nightsIn(b,from,to); if(k){ nts+=k*weight(b); ca+=k*perNight(b); } });
+  const days = nights(from,to), cap = units().length*days;
   const started = act.filter(b=>b.checkIn>=from && b.checkIn<to);
   const cancelled = S.bookings.filter(b=>b.status==="annulee" && b.checkIn>=from && b.checkIn<to).length;
   let enc=0; S.bookings.forEach(b=>(b.payments||[]).forEach(p=>{ if(p.date>=from && p.date<to) enc+=Number(p.amount)||0; }));
@@ -559,7 +572,7 @@ function vAna(){
   h += '<div class="stats">'
      + '<div class="stat"><span>Taux d\'occupation</span><b class="num">'+Math.round(st.occ*100)+' %</b></div>'
      + '<div class="stat"><span>Nuits vendues</span><b class="num">'+st.nts+'</b></div>'
-     + '<div class="stat"><span>Prix moyen / nuit</span><b class="num">'+dt(Math.round(st.adr))+'</b></div>'
+     + '<div class="stat"><span>Prix moyen / chambre / nuit</span><b class="num">'+dt(Math.round(st.adr))+'</b></div>'
      + '<div class="stat"><span>Réservations</span><b class="num">'+st.resas+'</b>'+(st.cancelled?'<span>'+st.cancelled+' annulée'+(st.cancelled>1?'s':'')+'</span>':'')+'</div>'
      + '<div class="stat"><span>Durée moyenne</span><b class="num">'+(Math.round(st.avgLen*10)/10).toLocaleString("fr-FR")+' nuit'+(st.avgLen>=2?'s':'')+'</b></div>'
      + '<div class="stat"><span>Reste à encaisser</span><b class="num">'+dt(st.reste)+'</b></div></div>';
@@ -603,11 +616,11 @@ const dis = () => S.canWrite ? '' : ' disabled';
 
 function bookingSheet(b){
   const isNew = !b;
-  b = b ? JSON.parse(JSON.stringify(b)) : { id: uid(), roomId: S.rooms[0]?.id||"", clientId:"", checkIn: today(), checkOut: addDays(today(),1), guests:2, pricePerNight: S.rooms[0]?.price||0, total:0, payments:[], status:"confirmee", source:"Direct", notes:"" };
+  b = b ? JSON.parse(JSON.stringify(b)) : { id: uid(), roomId: (units()[0]||S.rooms[0])?.id||"", clientId:"", checkIn: today(), checkOut: addDays(today(),1), guests:2, pricePerNight: (units()[0]||S.rooms[0])?.price||0, total:0, payments:[], status:"confirmee", source:"Direct", notes:"" };
   const html = '<form class="f" id="bf"><div class="row spread"><h2>'+(isNew?'Nouvelle réservation':'Réservation')+'</h2><button type="button" class="btn ghost" data-act="close">Fermer</button></div>'
    + '<label>Client<select id="b_client"><option value="">— Choisir —</option>'+opt("__new","+ Nouveau client",b.clientId?"":"__new")+S.clients.map(c=>opt(c.id,c.name+(c.phone?" · "+c.phone:""),b.clientId)).join("")+'</select></label>'
    + '<div id="newClient" class="g2"><label>Nom complet<input id="nc_name" autocomplete="off"></label><label>Téléphone<input id="nc_phone" type="tel"></label></div>'
-   + '<div class="g2"><label>Chambre<select id="b_room">'+S.rooms.map(r=>opt(r.id,r.name,b.roomId)).join("")+'</select></label><label>Personnes<input id="b_guests" type="number" min="1" value="'+(b.guests||1)+'"></label></div>'
+   + '<div class="g2"><label>Chambre<select id="b_room">'+S.rooms.map(r=>opt(r.id,r.wholeHouse?r.name+" (toutes les chambres)":r.name,b.roomId)).join("")+'</select></label><label>Personnes<input id="b_guests" type="number" min="1" value="'+(b.guests||1)+'"></label></div>'
    + '<label style="display:flex;align-items:center;gap:8px;color:var(--fg)"><input id="b_baby" type="checkbox" style="width:auto"'+(b.babyBed?' checked':'')+'> Ajouter un lit bébé</label>'
    + '<div class="g2"><label>Arrivée<input id="b_in" type="date" value="'+b.checkIn+'"></label><label>Départ<input id="b_out" type="date" value="'+b.checkOut+'"></label></div>'
    + '<div class="g2"><label>Prix par nuit (DT)<input id="b_price" type="number" min="0" step="0.5" value="'+(b.pricePerNight||0)+'"></label><label>Source<select id="b_source">'+["Direct","Téléphone","Booking.com","Airbnb","Facebook / Instagram","Bouche à oreille","Autre"].map(s=>opt(s,s,b.source)).join("")+'</select></label></div>'
@@ -625,9 +638,9 @@ function bookingSheet(b){
       const p = paid(b);
       g("b_sum").innerHTML = '<div><span>'+n+' nuit(s) × '+dt(g("b_price").value)+'</span><span class="num">'+dt(b.total)+'</span></div><div><span>Déjà payé</span><span class="num">'+dt(p)+'</span></div><div class="big"><span>Reste à payer</span><span class="num">'+dt(Math.max(0,b.total-p))+'</span></div>';
       const ci=g("b_in").value, co=g("b_out").value, rid=g("b_room").value;
-      const clash = ci&&co ? activeBookings().filter(x=>x.id!==b.id && x.roomId===rid && x.checkIn<co && ci<x.checkOut) : [];
+      const clash = ci&&co ? conflicts(rid,ci,co,b.id) : [];
       const r = room(rid), gu = Number(g("b_guests").value)||1;
-      let w = clash.map(x=>'<div class="note bad">Impossible : chambre déjà prise du '+fmtD(x.checkIn)+' au '+fmtD(x.checkOut)+' ('+esc(client(x.clientId)?.name||"")+').</div>').join("");
+      let w = clash.map(x=>'<div class="note bad">Impossible : '+esc(room(x.roomId)?.name||'chambre')+' déjà réservée du '+fmtD(x.checkIn)+' au '+fmtD(x.checkOut)+' ('+esc(client(x.clientId)?.name||"")+').</div>').join("");
       if(r && g("b_baby").checked && !r.babyBed) w += '<div class="note warn">'+esc(r.name)+' n\'est pas prévue pour un lit bébé.</div>';
       if(r && r.capacity && gu>r.capacity) w += '<div class="note warn">'+esc(r.name)+' accueille '+r.capacity+' personnes maximum.</div>';
       g("b_warn").innerHTML = w;
@@ -641,7 +654,7 @@ function bookingSheet(b){
     g("p_add").addEventListener("click",()=>{ const a=Number(g("p_amt").value); if(!(a>0)){ g("p_amt").focus(); return; } b.payments=(b.payments||[]).concat([{amount:a,method:g("p_meth").value,date:g("p_date").value||today()}]); g("p_amt").value=""; sync(); });
     g("b_pays").addEventListener("click",e=>{ const i=e.target.dataset.rmpay; if(i!=null){ b.payments.splice(Number(i),1); sync(); } });
     if(g("b_cancel")) g("b_cancel").addEventListener("click", async()=>{ b.status="annulee"; if(await save("bookings",b.id,strip(b))){ closeSheet(); toast("Réservation annulée"); } });
-    if(g("b_restore")) g("b_restore").addEventListener("click", async()=>{ const cl=activeBookings().filter(x=>x.id!==b.id && x.roomId===b.roomId && x.checkIn<b.checkOut && b.checkIn<x.checkOut); if(cl.length){ g("b_err").innerHTML='<div class="note bad">Impossible de rétablir : la chambre est prise entre-temps du '+fmtD(cl[0].checkIn)+' au '+fmtD(cl[0].checkOut)+'.</div>'; return; } b.status="confirmee"; if(await save("bookings",b.id,strip(b))){ closeSheet(); toast("Réservation rétablie"); } });
+    if(g("b_restore")) g("b_restore").addEventListener("click", async()=>{ const cl=conflicts(b.roomId,b.checkIn,b.checkOut,b.id); if(cl.length){ g("b_err").innerHTML='<div class="note bad">Impossible de rétablir : la chambre est prise entre-temps du '+fmtD(cl[0].checkIn)+' au '+fmtD(cl[0].checkOut)+'.</div>'; return; } b.status="confirmee"; if(await save("bookings",b.id,strip(b))){ closeSheet(); toast("Réservation rétablie"); } });
     if(g("b_del")) armDelete(g("b_del"), async()=>{ if(await remove("bookings",b.id)){ closeSheet(); toast("Réservation supprimée"); } });
     g("bf").addEventListener("submit", async e=>{
       e.preventDefault();
@@ -655,8 +668,8 @@ function bookingSheet(b){
       if(!g("b_room").value) return err("Ajoutez d'abord une chambre.");
       if(nights(g("b_in").value,g("b_out").value)<1) return err("Le départ doit être après l'arrivée.");
       { const ci=g("b_in").value, co=g("b_out").value, rid=g("b_room").value;
-        const clash = activeBookings().filter(x=>x.id!==b.id && x.roomId===rid && x.checkIn<co && ci<x.checkOut);
-        if(clash.length && b.status!=="annulee"){ const x=clash[0]; return err(esc(room(rid)?.name||"Cette chambre")+" est déjà réservée du "+fmtD(x.checkIn)+" au "+fmtD(x.checkOut)+" ("+esc(client(x.clientId)?.name||"")+"). Choisissez une autre chambre ou d'autres dates."); } }
+        const clash = conflicts(rid,ci,co,b.id);
+        if(clash.length && b.status!=="annulee"){ const x=clash[0]; return err((isHouse(rid)?"La maison entière n'est pas libre : "+esc(room(x.roomId)?.name||"une chambre"):esc(room(x.roomId)?.name||"Cette chambre"))+" est déjà réservée du "+fmtD(x.checkIn)+" au "+fmtD(x.checkOut)+" ("+esc(client(x.clientId)?.name||"")+"). Choisissez une autre chambre ou d'autres dates."); } }
       Object.assign(b,{clientId:cid, roomId:g("b_room").value, guests:Number(g("b_guests").value)||1, babyBed:g("b_baby").checked, checkIn:g("b_in").value, checkOut:g("b_out").value, pricePerNight:Number(g("b_price").value)||0, source:g("b_source").value, notes:g("b_notes").value.trim()});
       b.total = nights(b.checkIn,b.checkOut)*b.pricePerNight; delete b.example;
       if(await save("bookings",b.id,strip(b))){ closeSheet(); toast("Réservation enregistrée"); }
@@ -701,7 +714,7 @@ function expenseSheet(x){
 }
 
 function roomSheet(r){
-  const isNew=!r; r = r?{...r}:{ id:uid(), name:"Chambre "+(S.rooms.length+1), short:String(S.rooms.length+1), price:150, capacity:2, beds:"double", babyBed:true, status:"propre", note:"", order:S.rooms.length+1 };
+  const isNew=!r; r = r?{...r}:{ id:uid(), name:"Chambre "+(units().length+1), short:String(units().length+1), price:150, capacity:2, beds:"double", babyBed:true, status:"propre", note:"", order:S.rooms.length+1 };
   openSheet('<form class="f" id="rf"><div class="row spread"><h2>'+(isNew?'Nouvelle chambre':'Chambre')+'</h2><button type="button" class="btn ghost" data-act="close">Fermer</button></div>'
     + '<div class="g2"><label>Nom<input id="r_name" value="'+esc(r.name)+'"></label><label>Repère court<input id="r_short" maxlength="4" value="'+esc(r.short)+'"></label></div>'
     + '<div class="g2"><label>Prix par nuit (DT)<input id="r_price" type="number" min="0" step="0.5" value="'+esc(r.price)+'"></label><label>Capacité (pers.)<input id="r_cap" type="number" min="1" value="'+esc(r.capacity)+'"></label></div>'
