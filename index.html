@@ -226,6 +226,7 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 .pillbtn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .pillbtn.ok{background:var(--ok-soft);color:var(--ok)}.pillbtn.bad{background:var(--bad-soft);color:var(--bad)}
 .pillbtn:hover{border-color:currentColor}
+.f label .btn{color:var(--fg)}
 .r1{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .r1 .t{min-width:0}
 .sm-only{display:none}
@@ -306,12 +307,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=25"></script>
+<script src="firebase-config.js?v=26"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "25";
+const APP_VERSION = "26";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -733,6 +734,14 @@ function icsFor(list){
       "BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEsc("Arrivée dans 12 h : "+(c?c.name:"")),"TRIGGER:-PT12H","END:VALARM","END:VEVENT"].join("\r\n"); });
   return ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Dar Salma//Gestion//FR","CALSCALE:GREGORIAN","METHOD:PUBLISH"].concat(ev,["END:VCALENDAR"]).join("\r\n");
 }
+function googleCalUrl(b){
+  const c=client(b.clientId), r=room(b.roomId), d=b.checkIn.replace(/-/g,""), t=(b.arrivalTime||"14:00").replace(":","")+"00";
+  const [hh,mm]=(b.arrivalTime||"14:00").split(":").map(Number), end=String(Math.min(23,hh+1)).padStart(2,"0")+String(mm).padStart(2,"0")+"00";
+  const details=[(b.guests||1)+" personne(s)", "Séjour du "+fmtD(b.checkIn)+" au "+fmtD(b.checkOut), c&&c.phone?"Tél : "+c.phone:"", balance(b)>0?"Reste à encaisser : "+dt(balance(b)):"Payé", b.notes||""].filter(Boolean).join("\n")+"\n\nRappels conseillés : 1 jour et 12 heures avant";
+  const q=new URLSearchParams({action:"TEMPLATE", text:"Arrivée Dar Salma : "+(c?c.name:"client")+" · "+(r?r.name:""), dates:d+"T"+t+"/"+d+"T"+end, details, ctz:"Africa/Tunis"});
+  if(S.settings&&S.settings.address) q.set("location", S.settings.address);
+  return "https://calendar.google.com/calendar/render?"+q.toString();
+}
 function downloadIcs(list, name){
   if(!list.length){ toast("Aucune arrivée à venir"); return; }
   const blob = new Blob([icsFor(list)], {type:"text/calendar;charset=utf-8"}), url = URL.createObjectURL(blob);
@@ -789,7 +798,7 @@ function bookingSheet(b){
    + '<div class="g2"><label>Enfants (− 12 ans)<span class="step"><svg class="pp" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="3"/><path d="M7 21v-3a5 5 0 0 1 10 0v3M9 13l-3 3M15 13l3 3"/></svg><button type="button" class="sb" data-step="-1" data-t="b_kids" aria-label="Un enfant de moins">−</button><input id="b_kids" type="number" min="0" max="30" inputmode="numeric" value="'+(b.children||0)+'"><button type="button" class="sb" data-step="1" data-t="b_kids" aria-label="Un enfant de plus">+</button></span></label>'
    + '<label style="display:flex;align-items:center;gap:8px;color:var(--fg);align-self:end;padding-bottom:12px"><input id="b_baby" type="checkbox" style="width:auto"'+(b.babyBed?' checked':'')+'> Ajouter un lit bébé</label></div>'
    + '<div class="g2"><label>Arrivée<input id="b_in" type="date" value="'+b.checkIn+'"></label><label>Départ<input id="b_out" type="date" value="'+b.checkOut+'"></label></div>'
-   + '<div class="g2"><label>Heure d\'arrivée prévue<input id="b_time" type="time" value="'+esc(b.arrivalTime||"14:00")+'"></label>'+(!isNew&&b.status!=="annulee"?'<label>Rappels<button type="button" class="btn sm" id="b_ics" style="justify-self:start;margin-top:2px">Ajouter au calendrier</button></label>':'<span></span>')+'</div>'
+   + '<div class="g2"><label>Heure d\'arrivée prévue<input id="b_time" type="time" value="'+esc(b.arrivalTime||"14:00")+'"></label>'+(!isNew&&b.status!=="annulee"?'<label>Rappels<span class="row" style="gap:6px"><button type="button" class="btn sm" id="b_gcal">Google Agenda</button><button type="button" class="btn sm" id="b_ics">Autre calendrier</button></span></label>':'<span></span>')+'</div>'
    + (b.status!=="annulee"?'<div class="g2"><label>Statut<select id="b_status">'+opt("option","Option",b.status)+opt("confirmee","Confirmée",b.status)+'</select></label><label id="b_dep_l">Acompte avant le<input id="b_depby" type="date" value="'+esc(b.depositBy||"")+'"></label></div>':'')
    + '<div class="g2"><label><span id="b_price_l">Prix par nuit (DT)</span><input id="b_price" type="number" min="0" step="0.5" value="'+(b.pricePerNight||0)+'"></label><label>Source<select id="b_source">'+["Direct","Téléphone","Booking.com","Airbnb","Facebook / Instagram","Bouche à oreille","Autre"].map(s=>opt(s,s,b.source)).join("")+'</select></label></div>'
    + '<div><h3>Services en plus</h3><div id="b_ex"></div>'+(S.canWrite?'<div class="exadd"><select id="x_name" aria-label="Service">'+(S.settings.catalog||[]).map((c,i)=>'<option value="'+i+'">'+esc(c.name)+'</option>').join("")+'<option value="__autre">Autre…</option></select><input id="x_qty" type="number" min="1" value="1" aria-label="Quantité"><input id="x_price" type="number" min="0" step="0.5" aria-label="Prix unitaire (DT)" placeholder="Prix"><input id="x_other" placeholder="Nom du service" hidden><button type="button" class="btn sm" id="x_add">+ Ajouter</button></div>':'')+'</div>'
@@ -832,6 +841,7 @@ function bookingSheet(b){
       if(isNew && g("b_depby")){ const lim=addDays(today(), Number(S.settings.depositDays)||3), ci=g("b_in").value; g("b_depby").value = ci && lim>=ci ? (addDays(ci,-1)>today()?addDays(ci,-1):today()) : lim; } sync(); });
     ["b_out","b_price","b_guests","b_client"].forEach(id=>g(id).addEventListener("input",sync));
     g("b_baby").addEventListener("change",sync);
+    if(g("b_gcal")) g("b_gcal").addEventListener("click",()=>{ const x={...b, arrivalTime:g("b_time").value||"14:00"}; const a=document.createElement("a"); a.href=googleCalUrl(x); a.target="_blank"; a.rel="noopener"; document.body.appendChild(a); a.click(); a.remove(); });
     if(g("b_ics")) g("b_ics").addEventListener("click",()=>{ const x={...b, arrivalTime:g("b_time").value||"14:00"}; downloadIcs([x], "arrivee-"+b.checkIn+".ics"); });
     sh.querySelectorAll("[data-step]").forEach(btn=>btn.addEventListener("click",()=>{ const i=g(btn.dataset.t), mn=Number(i.min)||0; i.value=Math.max(mn,Math.min(30,(Number(i.value)||0)+Number(btn.dataset.step))); sync(); }));
     g("b_kids").addEventListener("input",sync);
