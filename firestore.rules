@@ -6,7 +6,7 @@ service cloud.firestore {
     function autorise() {
       return request.auth != null && request.auth.token.email in [
         'ghazi@darsalma.local',
-        'maman@darsalma.local'
+        'salma@darsalma.local'
       ];
     }
     match /{document=**} {
