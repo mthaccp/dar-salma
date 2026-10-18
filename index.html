@@ -212,7 +212,7 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.88
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=8"></script>
+<script src="firebase-config.js?v=9"></script>
 
 <script>
 (function(){
@@ -265,10 +265,19 @@ async function remove(col, id){ if(!S.db) return false; try{ await S.db.collecti
 const strip = o => { const c={...o}; delete c.id; return c; };
 
 let unsubs = [];
+function syncLabel(){
+  const el = $("#sync"); if(!S.db) return;
+  const c = Object.values(S.cached||{}), p = Object.values(S.pending||{});
+  if(!navigator.onLine) el.textContent = "Hors ligne · enregistré sur l'appareil";
+  else if(p.some(Boolean)) el.textContent = "Envoi en cours…";
+  else if(c.length && !c.some(Boolean)) el.textContent = "Synchronisé";
+  else el.textContent = "Connexion…";
+}
+window.addEventListener("online", ()=>syncLabel()); window.addEventListener("offline", ()=>syncLabel());
 function sub(col, sortFn){
-  unsubs.push(S.db.collection(col).onSnapshot(snap=>{
+  unsubs.push(S.db.collection(col).onSnapshot({includeMetadataChanges:true}, snap=>{
     S[col] = snap.docs.map(d=>({id:d.id, ...d.data()})).sort(sortFn||(()=>0));
-    S.loaded[col]=true; $("#sync").textContent = snap.metadata.fromCache ? "Hors ligne" : "Synchronisé";
+    S.loaded[col]=true; S.cached = S.cached||{}; S.cached[col] = snap.metadata.fromCache; S.pending = S.pending||{}; S.pending[col] = snap.metadata.hasPendingWrites; syncLabel();
     if(col==="rooms" && snap.empty && !snap.metadata.fromCache && !S.seeded) seedRooms();
     render();
   }, err=>{
