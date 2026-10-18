@@ -173,7 +173,7 @@ form.f{display:grid;gap:12px}
   <img class="lg" src="logo.webp" alt="Logo Dar Salma">
   <h1>Dar Salma</h1><p>Espace de gestion</p>
   <form class="f" id="lf">
-    <label>Identifiant<input id="l_email" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required></label>
+    <label>Nom d'utilisateur<input id="l_email" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required></label>
     <label>Mot de passe<input id="l_pass" type="password" autocomplete="current-password" required></label>
     <div id="l_err"></div>
     <button class="btn primary" type="submit" id="l_go">Se connecter</button>
@@ -274,7 +274,7 @@ async function boot(){
     try{ await auth.signInWithEmailAndPassword(toEmail($("#l_email").value), $("#l_pass").value); }
     catch(x){
       const c = x && x.code;
-      lerr(["auth/invalid-credential","auth/wrong-password","auth/user-not-found","auth/invalid-login-credentials","auth/invalid-email"].includes(c) ? "Identifiant ou mot de passe incorrect."
+      lerr(["auth/invalid-credential","auth/wrong-password","auth/user-not-found","auth/invalid-login-credentials","auth/invalid-email"].includes(c) ? "Nom d'utilisateur ou mot de passe incorrect."
         : c==="auth/too-many-requests" ? "Trop d'essais. Réessayez dans quelques minutes."
         : c==="auth/network-request-failed" ? "Pas de connexion internet."
         : "Connexion impossible. Vérifiez vos informations.");
