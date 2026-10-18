@@ -211,7 +211,7 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.88
 .remind .rh svg{width:20px;height:20px;fill:none;stroke:var(--jasmin);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .remind .list{border:none}
 nav.tabs button{position:relative}
-nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge);position:absolute;top:2px;right:calc(50% - 22px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--bad);color:#fff;font-size:.68rem;font-weight:800;line-height:18px;text-align:center}
+nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge);position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--bad);color:#fff;font-size:.68rem;font-weight:800;line-height:18px;text-align:center}
 .exadd{display:grid;grid-template-columns:1fr 64px 92px;gap:8px;margin-top:8px}
 .exadd #x_other{grid-column:1/-1}.exadd #x_add{grid-column:1/-1;justify-self:start}
 .exadd select,.exadd input{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;min-width:0;width:100%;color:var(--fg)}
@@ -238,6 +238,7 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 .cal table.m .bk{font-size:.66rem;padding-left:4px}
 @media (max-width:760px){
   .hm{display:none!important}
+  nav.tabs button[data-badge]:not([data-badge=""])::after{top:2px;right:calc(50% - 22px)}
   .sm-only{display:inline}
   main .row.spread h2{font-size:1.25rem}
   .fab{display:grid;place-items:center;position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(84px + env(safe-area-inset-bottom,0px));width:58px;height:58px;border-radius:50%;border:none;background:var(--accent);color:var(--on-accent);box-shadow:0 6px 18px rgba(20,30,60,.28);z-index:45;cursor:pointer}
@@ -307,12 +308,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=26"></script>
+<script src="firebase-config.js?v=27"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "26";
+const APP_VERSION = "27";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
