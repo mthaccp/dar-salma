@@ -226,6 +226,33 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 .pillbtn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .pillbtn.ok{background:var(--ok-soft);color:var(--ok)}.pillbtn.bad{background:var(--bad-soft);color:var(--bad)}
 .pillbtn:hover{border-color:currentColor}
+.r1{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.r1 .t{min-width:0}
+.sm-only{display:none}
+.fab{display:none}
+.cal table.m{min-width:0}
+.cal table.m thead th.room{width:46px}
+.cal table.m th.room{padding:8px 6px;text-align:center}
+.cal table.m th.room .pen{display:none}
+.cal table.m .bk{font-size:.66rem;padding-left:4px}
+@media (max-width:760px){
+  .hm{display:none!important}
+  .sm-only{display:inline}
+  main .row.spread h2{font-size:1.25rem}
+  .fab{display:grid;place-items:center;position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(84px + env(safe-area-inset-bottom,0px));width:58px;height:58px;border-radius:50%;border:none;background:var(--accent);color:var(--on-accent);box-shadow:0 6px 18px rgba(20,30,60,.28);z-index:45;cursor:pointer}
+  .fab[hidden]{display:none}
+  .fab svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
+  main{padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+  .item{padding:12px 14px}
+  .stats{grid-template-columns:1fr 1fr;gap:8px}
+  .stat{padding:10px 12px}
+  .stat b{font-size:1.35rem}
+  .sheet-bg{align-items:stretch}
+  .sheet{max-height:none;height:100%;border-radius:0;padding-top:0;padding-bottom:0}
+  .sheet > .f > .row.spread:first-child,.sheet > form.f > .row.spread:first-child{position:sticky;top:0;z-index:2;background:var(--surface);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:10px;border-bottom:1px solid var(--line);margin:0 -2px}
+  .sheet > form.f > .row.spread:last-child{position:sticky;bottom:0;z-index:2;background:var(--surface);padding-top:10px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);margin:0 -2px}
+  .sheet > form.f > .row.spread:last-child .btn.primary{padding:12px 22px;font-size:1rem}
+}
 .pics{display:flex;flex-wrap:wrap;gap:8px}
 .pic{position:relative;width:84px;height:84px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--sunk);cursor:zoom-in;padding:0}
 .pic img{width:100%;height:100%;object-fit:cover;display:block}
@@ -262,6 +289,7 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
   <button class="btn sm out" id="logout" hidden aria-label="Déconnexion"><svg class="lo" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10"/></svg><span class="lot">Déconnexion</span></button>
 </div></header>
 <main class="wrap" id="main"></main>
+<button id="fab" class="fab" type="button" hidden aria-label="Ajouter"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
 <div id="sheetRoot"></div>
 <div id="toastRoot"></div>
 <div id="login" class="login" hidden><div class="login-card">
@@ -278,12 +306,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=24"></script>
+<script src="firebase-config.js?v=25"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "24";
+const APP_VERSION = "25";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -460,12 +488,14 @@ function render(){
   if(S.db && !allLoaded) html += '<div class="empty">Chargement des données…</div>';
   else html += ({jour:vJour, cal:vCal, resa:vResa, clients:vClients, fin:vFin, ana:vAna}[S.tab]||vJour)();
   m.innerHTML = '<div class="panel">'+html+'</div>';
+  { const fab=$("#fab"), map={jour:["new-booking","Nouvelle réservation"],cal:["new-booking","Nouvelle réservation"],resa:["new-booking","Nouvelle réservation"],clients:["new-client","Nouveau client"],fin:["new-expense","Nouvelle dépense"],ana:["new-booking","Nouvelle réservation"]}[S.tab];
+    if(fab){ fab.hidden = !(S.db && S.canWrite && map); if(map){ fab.dataset.act=map[0]; fab.setAttribute("aria-label",map[1]); fab.title=map[1]; } } }
 }
 
 function bookingItem(b, extra){
   const c = client(b.clientId), r = room(b.roomId), bal = balance(b);
   const st = b.status==="annulee" ? '<span class="pill bad">Annulée</span>' : isOption(b) ? '<span class="pill '+(optionLate(b)?'bad':'info')+' num">Option'+(Math.max(0,depositDue(b)-paid(b))>0?' · acompte '+dt(Math.max(0,depositDue(b)-paid(b))):'')+'</span>' : bal>0 ? '<span class="pill warn num">Reste '+dt(bal)+'</span>' : '<span class="pill ok">Payé</span>';
-  return '<div class="item click" data-act="edit-booking" data-id="'+b.id+'"><span class="roomtag">'+esc(r?r.short||r.name:"?")+'</span><div class="grow"><div class="t">'+esc(c?c.name:"Client inconnu")+(b.example?' <span class="pill ex">exemple</span>':'')+'</div><div class="s num">'+fmtD(b.checkIn)+' → '+fmtD(b.checkOut)+' · '+nights(b.checkIn,b.checkOut)+' nuit(s) · '+(b.guests||1)+' pers.'+(b.children?' dont '+b.children+' enfant'+(b.children>1?'s':''):'')+(b.babyBed?' + lit bébé':'')+(extra?' · '+extra:'')+'</div></div>'+st+'</div>';
+  return '<div class="item click" data-act="edit-booking" data-id="'+b.id+'"><span class="roomtag">'+esc(r?r.short||r.name:"?")+'</span><div class="grow"><div class="r1"><span class="t">'+esc(c?c.name:"Client inconnu")+'</span>'+st+'</div><div class="s num">'+fmtD(b.checkIn)+' → '+fmtD(b.checkOut)+' · '+nights(b.checkIn,b.checkOut)+' nuit(s) · '+(b.guests||1)+' pers.'+(b.children?' dont '+b.children+' enfant'+(b.children>1?'s':''):'')+(b.babyBed?' + lit bébé':'')+(extra?' · '+extra:'')+'</div></div></div>';
 }
 
 function vJour(){
@@ -477,7 +507,7 @@ function vJour(){
   const dueSum = due.reduce((s,b)=>s+balance(b),0);
   const tom = addDays(t,1);
   const arrTom = activeBookings().filter(b=>b.checkIn===tom);
-  let h = '<div class="row spread"><h2>'+fmtLong(t).replace(/^./,c=>c.toUpperCase())+'</h2><button class="btn primary" data-act="new-booking"'+(S.canWrite?'':' disabled')+'>+ Réservation</button></div>';
+  let h = '<div class="row spread"><h2>'+fmtLong(t).replace(/^./,c=>c.toUpperCase())+'</h2><button class="btn primary hm" data-act="new-booking"'+(S.canWrite?'':' disabled')+'>+ Réservation</button></div>';
   const soon = upcomingArrivals(24);
   if(soon.length) h += '<div class="remind"><div class="rh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><h3 style="margin:0">Rappels · arrivées dans les 24 h</h3><span class="grow"></span><button class="btn sm ghost" data-act="ics-all">Ajouter au calendrier</button></div><div class="list">'
      + soon.map(b=>{ const hrs=(arrivalAt(b)-Date.now())/3600e3; return bookingItem(b, '<b style="color:'+(hrs<=12?'var(--bad)':'var(--warn)')+'">Arrivée '+inHours(b)+' ('+(b.arrivalTime||"14:00")+')</b>'); }).join("")+'</div></div>';
@@ -503,13 +533,13 @@ function vJour(){
 }
 
 function vCal(){
-  const days = 14, start = S.calStart, t = today();
+  const mob = window.innerWidth < 760, days = mob ? 7 : 14, start = S.calStart, t = today();
   const ds = Array.from({length:days},(_,i)=>addDays(start,i));
   const sd = parse(start), ed = parse(ds[days-1]);
   let h = '<div class="row spread"><h2>'+MOIS[sd.getMonth()].replace(/^./,c=>c.toUpperCase())+(sd.getMonth()!==ed.getMonth()?' – '+MOIS[ed.getMonth()]:'')+' '+ed.getFullYear()+'</h2><div class="row"><button class="btn sm" data-act="cal-prev" aria-label="Semaine précédente">←</button><button class="btn sm" data-act="cal-today">Aujourd\'hui</button><button class="btn sm" data-act="cal-next" aria-label="Semaine suivante">→</button></div></div>';
-  h += '<div class="cal"><table><thead><tr><th class="room">Chambre</th>'+ds.map(d=>{const x=parse(d),we=x.getDay()===0||x.getDay()===6;return '<th class="'+(d===t?'today ':'')+(we?'we':'')+'">'+JOURS[x.getDay()]+'<span class="d">'+x.getDate()+'</span></th>';}).join("")+'</tr></thead><tbody>';
+  h += '<div class="cal"><table'+(mob?' class="m"':'')+'><thead><tr><th class="room">'+(mob?'':'Chambre')+'</th>'+ds.map(d=>{const x=parse(d),we=x.getDay()===0||x.getDay()===6;return '<th class="'+(d===t?'today ':'')+(we?'we':'')+'">'+JOURS[x.getDay()]+'<span class="d">'+x.getDate()+'</span></th>';}).join("")+'</tr></thead><tbody>';
   S.rooms.forEach(r=>{
-    h += '<tr'+(r.wholeHouse?' class="house"':'')+'><th class="room">'+(S.canWrite?'<button data-act="edit-room" data-id="'+r.id+'" title="Modifier">'+esc(r.name)+'<svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg></button>':esc(r.name))+'</th>';
+    h += '<tr'+(r.wholeHouse?' class="house"':'')+'><th class="room">'+(S.canWrite?'<button data-act="edit-room" data-id="'+r.id+'" title="Modifier '+esc(r.name)+'">'+esc(mob?(r.short||r.name):r.name)+'<svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg></button>':esc(mob?(r.short||r.name):r.name))+'</th>';
     ds.forEach(d=>{
       const b = occupying(r.id,d);
       const blocked = !b && (r.wholeHouse ? units().some(u=>occupying(u.id,d)) : false);
@@ -532,13 +562,16 @@ function vCal(){
 function vResa(){
   const t = today(), f = S.resaFilter;
   let list = S.bookings.slice();
+  const rq=(S.resaQ||"").trim().toLowerCase();
+  if(rq) list = list.filter(b=>{ const c=client(b.clientId)||{}, r=room(b.roomId)||{}; return [c.name,c.phone,r.name,b.notes].join(" ").toLowerCase().includes(rq); });
   if(f==="avenir") list = list.filter(b=>b.status!=="annulee" && b.checkOut>=t);
   else if(f==="options") list = list.filter(isOption);
   else if(f==="passees") list = list.filter(b=>b.status!=="annulee" && b.checkOut<t).reverse();
   else if(f==="impayees") list = list.filter(b=>b.status!=="annulee" && balance(b)>0);
   else if(f==="annulees") list = list.filter(b=>b.status==="annulee");
-  const seg = [["avenir","En cours et à venir"],["options","Options"],["impayees","Impayées"],["passees","Passées"],["annulees","Annulées"]];
-  let h = '<div class="row spread"><h2>Réservations</h2><div class="row"><button class="btn sm" data-act="ics-upcoming">Rappels dans le calendrier</button><button class="btn primary" data-act="new-booking"'+(S.canWrite?'':' disabled')+'>+ Réservation</button></div></div>';
+  const seg = [["avenir","À venir"],["options","Options"],["impayees","Impayées"],["passees","Passées"],["annulees","Annulées"]];
+  let h = '<div class="row spread"><h2>Réservations</h2><div class="row"><button class="btn sm" data-act="ics-upcoming"><span class="hm">Rappels dans le calendrier</span><span class="sm-only">Rappels</span></button><button class="btn primary hm" data-act="new-booking"'+(S.canWrite?'':' disabled')+'>+ Réservation</button></div></div>';
+  h += '<input class="search" id="resaQ" type="search" placeholder="Rechercher un client, un téléphone…" value="'+esc(S.resaQ||"")+'">';
   h += '<div class="seg" role="tablist">'+seg.map(([k,l])=>'<button class="'+(k===f?'on':'')+'" data-act="resa-filter" data-f="'+k+'">'+l+'</button>').join("")+'</div>';
   h += '<div class="list">'+(list.length?list.map(b=>bookingItem(b, b.source?esc(b.source):"")).join(""):'<div class="empty">Aucune réservation dans cette liste. Touchez « + Réservation » pour en ajouter une.</div>')+'</div>';
   return h;
@@ -547,7 +580,7 @@ function vResa(){
 function vClients(){
   const q = S.clientQ.trim().toLowerCase();
   const list = S.clients.filter(c=>!q || [c.name,c.phone,c.nationality,c.idDoc].join(" ").toLowerCase().includes(q));
-  let h = '<div class="row spread"><h2>Clients</h2><button class="btn primary" data-act="new-client"'+(S.canWrite?'':' disabled')+'>+ Client</button></div>';
+  let h = '<div class="row spread"><h2>Clients</h2><button class="btn primary hm" data-act="new-client"'+(S.canWrite?'':' disabled')+'>+ Client</button></div>';
   h += '<div class="row"><input class="search" id="clientQ" type="search" placeholder="Rechercher un nom, un téléphone…" value="'+esc(S.clientQ)+'"></div>';
   h += '<div class="list">'+(list.length?list.map(c=>{
     const st = S.bookings.filter(b=>b.clientId===c.id && b.status!=="annulee");
@@ -1042,7 +1075,7 @@ document.addEventListener("click", async e=>{
     toast("Exemples supprimés"); return;
   }
 });
-document.addEventListener("input", e=>{ if(e.target.id==="clientQ"){ S.clientQ=e.target.value; const pos=e.target.selectionStart; render(); const i=$("#clientQ"); if(i){ i.focus(); try{i.setSelectionRange(pos,pos)}catch(_){} } } });
+document.addEventListener("input", e=>{ const id=e.target.id; if(id==="clientQ"||id==="resaQ"){ if(id==="clientQ") S.clientQ=e.target.value; else S.resaQ=e.target.value; const pos=e.target.selectionStart; render(); const i=$("#"+id); if(i){ i.focus(); try{i.setSelectionRange(pos,pos)}catch(_){} } } });
 document.addEventListener("keydown", e=>{ if(e.key==="Escape" && sheetOpen) closeSheet(); });
 
 // tooltip
@@ -1052,7 +1085,7 @@ document.addEventListener("pointermove", e=>{ if(tipEl.hidden) return; const w=t
 document.addEventListener("pointerdown", e=>{ if(!e.target.closest("[data-tip]")) tipEl.hidden=true; else { const el=e.target.closest("[data-tip]"); tipEl.textContent=el.dataset.tip; tipEl.hidden=false; const w=tipEl.offsetWidth; tipEl.style.left=Math.min(window.innerWidth-w-8,Math.max(8,e.clientX-w/2))+"px"; tipEl.style.top=Math.max(8,e.clientY-50)+"px"; } });
 window.addEventListener("scroll", ()=>{ tipEl.hidden=true; }, {passive:true});
 setInterval(()=>{ if(!sheetOpen && S.db && (S.tab==="jour")) render(); }, 60000);
-let rz; window.addEventListener("resize", ()=>{ clearTimeout(rz); rz=setTimeout(()=>{ if(S.tab==="ana" && !sheetOpen) render(); },200); });
+let rz; window.addEventListener("resize", ()=>{ clearTimeout(rz); rz=setTimeout(()=>{ if((S.tab==="ana"||S.tab==="cal") && !sheetOpen) render(); },200); });
 boot();
 })();
 </script>
