@@ -21,6 +21,7 @@
   --fg:#1b2240; --muted:#5f6680; --accent:#1e2f62; --accent-soft:#e3e7f2; --on-accent:#ffffff;
   --jasmin:#a8823d; --jasmin-soft:#f4ecdc;
   --navy:#1e2f62; --gold:#c9a55f; --on-navy:#f3efe6;
+  --c1:#3556b0; --c2:#c38a26;
   --ok:#2f7a4f; --ok-soft:#dcefe3; --warn:#a8641a; --warn-soft:#f7e6d1; --bad:#b03a3a; --bad-soft:#f6dddd;
   --display:"Cormorant Garamond", Georgia, "Times New Roman", serif;
   --brand:"Cinzel", "Trajan Pro", Georgia, serif;
@@ -30,13 +31,13 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#111529; --surface:#192037; --sunk:#222a44; --line:#2e3857;
   --fg:#e9ebf2; --muted:#9ba2b8; --accent:#a3b6ea; --accent-soft:#25325a; --on-accent:#111a33;
-  --jasmin:#d8b46c; --jasmin-soft:#3a3020; --navy:#17244d;
+  --jasmin:#d8b46c; --jasmin-soft:#3a3020; --navy:#17244d; --c1:#6f8fe0; --c2:#b98a30;
   --ok:#6cc495; --ok-soft:#1d3329; --warn:#e3a35c; --warn-soft:#3a2b1b; --bad:#ec8383; --bad-soft:#3d2224;
   color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#111529; --surface:#192037; --sunk:#222a44; --line:#2e3857;
   --fg:#e9ebf2; --muted:#9ba2b8; --accent:#a3b6ea; --accent-soft:#25325a; --on-accent:#111a33;
-  --jasmin:#d8b46c; --jasmin-soft:#3a3020; --navy:#17244d;
+  --jasmin:#d8b46c; --jasmin-soft:#3a3020; --navy:#17244d; --c1:#6f8fe0; --c2:#b98a30;
   --ok:#6cc495; --ok-soft:#1d3329; --warn:#e3a35c; --warn-soft:#3a2b1b; --bad:#ec8383; --bad-soft:#3d2224;
   color-scheme:dark}
 *{box-sizing:border-box}
@@ -150,6 +151,27 @@ form.f{display:grid;gap:12px}
   nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--accent)}
   .g2{grid-template-columns:1fr 1fr}
 }
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:grid;gap:10px;min-width:0;align-content:start}
+.chart svg{width:100%;height:auto;display:block}
+.chart .gl{stroke:var(--line);stroke-width:1}.chart .ax{stroke:var(--muted);stroke-width:1}
+.chart .tk{fill:var(--muted);font-size:11px;font-family:var(--body)}.chart .tk.cur{fill:var(--fg);font-weight:700}
+.chart .hit{fill:transparent;cursor:pointer}.chart .hit:hover{fill:var(--sunk);opacity:.5}
+.hbars{display:grid;gap:8px}
+.hb{display:grid;grid-template-columns:minmax(80px,32%) 1fr auto;gap:10px;align-items:center;font-size:.88rem;cursor:default}
+.hl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ht{height:12px;background:var(--sunk);border-radius:6px;overflow:hidden}
+.hf{display:block;height:100%;border-radius:0 6px 6px 0}
+.hv{color:var(--muted);font-size:.82rem;white-space:nowrap}
+.hero{background:var(--navy);color:var(--on-navy);border-radius:var(--r);padding:18px 20px;display:flex;gap:16px 28px;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;border-bottom:3px solid var(--gold)}
+.hero span{display:block;font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--gold);font-weight:700}
+.hero b{font-family:var(--display);font-size:2.4rem;line-height:1.05}
+.hero small{display:block;color:rgba(243,239,230,.7);font-size:.78rem;margin-top:4px}
+.hero-side{display:flex;gap:22px;flex-wrap:wrap}.hero-side b{font-size:1.45rem}
+details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.88rem}
+.tbl{overflow-x:auto;margin-top:8px}.tbl table{border-collapse:collapse;width:100%;font-size:.85rem;min-width:520px}
+.tbl th,.tbl td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--line)}.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl th{color:var(--muted);font-weight:600}
+.tip{position:fixed;z-index:80;background:var(--fg);color:var(--bg);font-size:.8rem;font-weight:600;padding:6px 10px;border-radius:8px;pointer-events:none;max-width:240px}
 .out{background:transparent;color:var(--on-navy);border-color:rgba(243,239,230,.35)}
 .login{position:fixed;inset:0;z-index:70;background:var(--navy);display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));overflow:auto}
 .login-card{background:var(--surface);border-radius:18px;padding:28px 24px;width:min(380px,100%);display:grid;gap:14px;border-top:3px solid var(--gold)}
@@ -164,11 +186,12 @@ form.f{display:grid;gap:12px}
 <header class="top"><div class="wrap top-in">
   <div class="brand"><img src="logo.webp" alt="Logo Dar Salma"><div class="bt"><h1>Dar Salma</h1><small id="sync">Connexion…</small></div></div>
   <nav class="tabs" id="tabs">
-    <button data-tab="jour" aria-current="page"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4"/><circle cx="12" cy="12" r="3.5"/></svg><span class="ll">Aujourd'hui</span><span class="ls">Aujourd'hui</span></button>
-    <button data-tab="cal"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg><span class="ll">Calendrier</span><span class="ls">Calendrier</span></button>
+    <button data-tab="jour" aria-current="page"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4"/><circle cx="12" cy="12" r="3.5"/></svg><span class="ll">Aujourd'hui</span><span class="ls">Jour</span></button>
+    <button data-tab="cal"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg><span class="ll">Calendrier</span><span class="ls">Agenda</span></button>
     <button data-tab="resa"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18V9a2 2 0 0 1 2-2h4a3 3 0 0 1 3 3v3h9v5M3 14h18"/></svg><span class="ll">Réservations</span><span class="ls">Résas</span></button>
     <button data-tab="clients"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 7.5a3 3 0 0 1 0 5.6M17.5 14.5a5 5 0 0 1 3 4.5"/></svg><span class="ll">Clients</span><span class="ls">Clients</span></button>
     <button data-tab="fin"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg><span class="ll">Finances</span><span class="ls">Finances</span></button>
+    <button data-tab="ana"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M7 16v-5M12 16V6M17 16v-8"/></svg><span class="ll">Analyse</span><span class="ls">Analyse</span></button>
   </nav>
   <button class="btn sm out" id="logout" hidden>Déconnexion</button>
 </div></header>
@@ -189,7 +212,7 @@ form.f{display:grid;gap:12px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=6"></script>
+<script src="firebase-config.js?v=8"></script>
 
 <script>
 (function(){
@@ -216,7 +239,7 @@ const store = { get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JS
 
 // ---------- state ----------
 const S = { rooms:[], clients:[], bookings:[], expenses:[], loaded:{}, tab: store.get("ds_tab","jour"),
-  calStart: addDays(today(), -1), resaFilter:"avenir", clientQ:"", finMonth: today().slice(0,7), canWrite:true, db:null };
+  calStart: addDays(today(), -1), resaFilter:"avenir", clientQ:"", finMonth: today().slice(0,7), anaPeriod:"mois", canWrite:true, db:null };
 let sheetOpen = null;
 
 function toast(msg){ const r=$("#toastRoot"); r.innerHTML='<div class="toast" role="status">'+esc(msg)+'</div>'; clearTimeout(toast.t); toast.t=setTimeout(()=>r.innerHTML="",2200); }
@@ -314,7 +337,7 @@ function render(){
   if(!S.canWrite) html += '<div class="banner"><span class="grow">Vous consultez en lecture seule. Demandez au propriétaire de vous donner le niveau « Contributeur » pour modifier.</span></div>';
   if(hasExamples() && S.canWrite) html += '<div class="banner"><span class="pill ex">Exemples</span><span class="grow">Les réservations, clients et dépenses marqués « exemple » servent à montrer l\'application. Les chambres sont modifiables dans Finances › Chambres.</span><button class="btn sm" data-act="clear-ex">Supprimer les exemples</button></div>';
   if(S.db && !allLoaded) html += '<div class="empty">Chargement des données…</div>';
-  else html += ({jour:vJour, cal:vCal, resa:vResa, clients:vClients, fin:vFin}[S.tab]||vJour)();
+  else html += ({jour:vJour, cal:vCal, resa:vResa, clients:vClients, fin:vFin, ana:vAna}[S.tab]||vJour)();
   m.innerHTML = '<div class="panel">'+html+'</div>';
 }
 
@@ -425,6 +448,109 @@ function vFin(){
   h += '<div class="list">'+(exps.length?exps.map(e=>'<div class="item click" data-act="edit-expense" data-id="'+e.id+'"><div class="grow"><div class="t">'+esc(e.label||e.category)+(e.example?' <span class="pill ex">exemple</span>':'')+'</div><div class="s num">'+fmtD(e.date)+' · '+esc(e.category||"")+'</div></div><b class="num">'+dt(e.amount)+'</b></div>').join(""):'<div class="empty">Aucune dépense ce mois-ci.</div>')+'</div></div>';
   h += '<div><h3>Paiements reçus</h3><div class="list">'+(pays.length?pays.map(p=>{const c=client(p.b.clientId);return '<div class="item click" data-act="edit-booking" data-id="'+p.b.id+'"><div class="grow"><div class="t">'+esc(c?c.name:"")+'</div><div class="s num">'+fmtD(p.date)+' · '+esc(p.method||"")+'</div></div><b class="num">'+dt(p.amount)+'</b></div>';}).join(""):'<div class="empty">Aucun paiement enregistré ce mois-ci.</div>')+'</div>';
   h += '<div class="row spread" style="margin:16px 0 8px"><h3 style="margin:0">Chambres</h3><button class="btn sm" data-act="new-room"'+(S.canWrite?'':' disabled')+'>+ Chambre</button></div><div class="list">'+(S.rooms.length?S.rooms.map(r=>'<div class="item click" data-act="edit-room" data-id="'+r.id+'"><span class="roomtag">'+esc(r.short||r.name)+'</span><div class="grow"><div class="t">'+esc(r.name)+'</div><div class="s">'+roomDesc(r)+(false?' · '+esc(r.note):'')+'</div></div><span class="num">'+dt(r.price)+' / nuit</span></div>').join(""):'<div class="empty">Aucune chambre.</div>')+'</div></div></div>';
+  return h;
+}
+
+// ---------- analyse ----------
+function monthStart(ym){ return ym+"-01"; }
+function nextMonth(ym){ const [y,m]=ym.split("-").map(Number); return toISO(new Date(y,m,1)).slice(0,7); }
+function addMonths(ym,n){ const [y,m]=ym.split("-").map(Number); return toISO(new Date(y,m-1+n,1)).slice(0,7); }
+function nightsIn(b, from, to){ const a = b.checkIn>from?b.checkIn:from, z = b.checkOut<to?b.checkOut:to; return z>a ? nights(a,z) : 0; }
+function perNight(b){ const n = nights(b.checkIn,b.checkOut); return n ? (Number(b.total)||0)/n : 0; }
+function niceMax(v){ if(v<=0) return 1; const p=Math.pow(10,Math.floor(Math.log10(v))), f=v/p; return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p; }
+const dtShort = n => n>=10000 ? (Math.round(n/100)/10).toLocaleString("fr-FR")+" k" : Math.round(n).toLocaleString("fr-FR");
+
+function stats(from, to){
+  const act = activeBookings();
+  let ca=0, nts=0;
+  act.forEach(b=>{ const k=nightsIn(b,from,to); if(k){ nts+=k; ca+=k*perNight(b); } });
+  const days = nights(from,to), cap = S.rooms.length*days;
+  const started = act.filter(b=>b.checkIn>=from && b.checkIn<to);
+  const cancelled = S.bookings.filter(b=>b.status==="annulee" && b.checkIn>=from && b.checkIn<to).length;
+  let enc=0; S.bookings.forEach(b=>(b.payments||[]).forEach(p=>{ if(p.date>=from && p.date<to) enc+=Number(p.amount)||0; }));
+  const dep = S.expenses.filter(e=>e.date>=from && e.date<to).reduce((s,e)=>s+(Number(e.amount)||0),0);
+  const reste = started.reduce((s,b)=>s+balance(b),0);
+  return { ca, nts, occ: cap? nts/cap : 0, adr: nts? ca/nts : 0, resas: started.length,
+    avgLen: started.length ? started.reduce((s,b)=>s+nights(b.checkIn,b.checkOut),0)/started.length : 0,
+    cancelled, enc, dep, reste, started };
+}
+
+function chartBars(months, series, fmt, opts){
+  const mainW=(document.getElementById("main")||{}).clientWidth||640, W=Math.max(300,Math.min(640,mainW-34)), H=Math.round(W<480?200:230), L=W<480?40:48, R=8, T=14, B=34, iw=W-L-R, ih=H-T-B;
+  const max = niceMax(Math.max(0,...series.flatMap(s=>s.values)) * (opts&&opts.pct?1:1.08));
+  const top = opts&&opts.pct ? Math.max(max, 0.0001) : max;
+  const gw = iw/months.length, n=series.length, gap=2, bw=Math.min(28,(gw*0.72-gap*(n-1))/n);
+  let g = '';
+  for(let i=0;i<=4;i++){ const v=top*i/4, y=T+ih-ih*i/4;
+    g += '<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y+'" y2="'+y+'" class="gl"/><text x="'+(L-6)+'" y="'+(y+4)+'" text-anchor="end" class="tk">'+fmt(v)+'</text>'; }
+  months.forEach((m,i)=>{
+    const cx = L+gw*i+gw/2, x0 = cx-(n*bw+(n-1)*gap)/2;
+    series.forEach((s,j)=>{ const v=s.values[i], h=v>0?Math.max(2,ih*v/top):0, x=x0+j*(bw+gap), y=T+ih-h;
+      if(h>0){ const r=Math.min(4,bw/2,h);
+        g += '<path d="M'+x+','+(T+ih)+'V'+(y+r)+'Q'+x+','+y+' '+(x+r)+','+y+'H'+(x+bw-r)+'Q'+(x+bw)+','+y+' '+(x+bw)+','+(y+r)+'V'+(T+ih)+'Z" style="fill:'+s.color+'"/>'; }
+      g += '<rect x="'+(x-gap/2)+'" y="'+T+'" width="'+(bw+gap)+'" height="'+ih+'" class="hit" data-tip="'+esc(m.full+' · '+s.name+' : '+(opts&&opts.tipFmt?opts.tipFmt(v):fmt(v)))+'"/>';
+    });
+    g += '<text x="'+cx+'" y="'+(H-B+18)+'" text-anchor="middle" class="tk'+(m.cur?' cur':'')+'">'+esc(m.lab)+'</text>';
+  });
+  g += '<line x1="'+L+'" x2="'+(W-R)+'" y1="'+(T+ih)+'" y2="'+(T+ih)+'" class="ax"/>';
+  return '<div class="chart"><svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(opts&&opts.label||"")+'">'+g+'</svg></div>';
+}
+
+function chartH(items, fmt, color, label){
+  if(!items.length) return '<div class="empty">Pas encore de données sur cette période.</div>';
+  const max = Math.max(...items.map(i=>i.value)) || 1;
+  return '<div class="hbars" role="list" aria-label="'+esc(label)+'">'+items.map(i=>
+    '<div class="hb" role="listitem" data-tip="'+esc(i.label+' : '+fmt(i.value)+(i.extra?' · '+i.extra:''))+'"><span class="hl">'+esc(i.label)+'</span><span class="ht"><span class="hf" style="width:'+Math.max(2,i.value/max*100)+'%;background:'+color+'"></span></span><span class="hv num">'+fmt(i.value)+'</span></div>').join("")+'</div>';
+}
+
+function vAna(){
+  const t = today(), ym = t.slice(0,7), y = t.slice(0,4), P = S.anaPeriod;
+  let from, to, title, mStart;
+  if(P==="mois"){ from=monthStart(ym); to=monthStart(nextMonth(ym)); title=MOIS[Number(ym.slice(5))-1].replace(/^./,c=>c.toUpperCase())+" "+y; mStart=addMonths(ym,-11); }
+  else if(P==="annee"){ from=y+"-01-01"; to=(Number(y)+1)+"-01-01"; title="Année "+y; mStart=y+"-01"; }
+  else { mStart=addMonths(ym,-11); from=monthStart(mStart); to=monthStart(nextMonth(ym)); title="12 derniers mois"; }
+  const st = stats(from,to);
+  const months = Array.from({length:12},(_,i)=>{ const m=addMonths(mStart,i), mi=Number(m.slice(5))-1;
+    return { ym:m, lab:MCOURT[mi].replace(".",""), full:MOIS[mi]+" "+m.slice(0,4), cur:m===ym, s:stats(monthStart(m),monthStart(nextMonth(m))) }; });
+
+  const seg = [["mois","Ce mois"],["annee","Cette année"],["12m","12 derniers mois"]];
+  let h = '<div class="row spread"><h2>Analyse · '+esc(title)+'</h2><div class="seg">'+seg.map(([k,l])=>'<button class="'+(k===P?'on':'')+'" data-act="ana-period" data-p="'+k+'">'+l+'</button>').join("")+'</div></div>';
+  if(!S.bookings.length) h += '<div class="banner"><span class="grow">Les chiffres se rempliront au fur et à mesure de vos réservations.</span></div>';
+
+  h += '<div class="hero"><div><span>Chiffre d\'affaires</span><b class="num">'+dt(st.ca)+'</b><small>nuits passées sur la période, réservations annulées exclues</small></div>'
+     + '<div class="hero-side"><div><span>Encaissé</span><b class="num">'+dt(st.enc)+'</b></div><div><span>Dépenses</span><b class="num">'+dt(st.dep)+'</b></div><div><span>Résultat</span><b class="num" style="color:'+(st.enc-st.dep>=0?'#9fdcb5':'#f4a9a9')+'">'+dt(st.enc-st.dep)+'</b></div></div></div>';
+
+  h += '<div class="stats">'
+     + '<div class="stat"><span>Taux d\'occupation</span><b class="num">'+Math.round(st.occ*100)+' %</b></div>'
+     + '<div class="stat"><span>Nuits vendues</span><b class="num">'+st.nts+'</b></div>'
+     + '<div class="stat"><span>Prix moyen / nuit</span><b class="num">'+dt(Math.round(st.adr))+'</b></div>'
+     + '<div class="stat"><span>Réservations</span><b class="num">'+st.resas+'</b>'+(st.cancelled?'<span>'+st.cancelled+' annulée'+(st.cancelled>1?'s':'')+'</span>':'')+'</div>'
+     + '<div class="stat"><span>Durée moyenne</span><b class="num">'+(Math.round(st.avgLen*10)/10).toLocaleString("fr-FR")+' nuit'+(st.avgLen>=2?'s':'')+'</b></div>'
+     + '<div class="stat"><span>Reste à encaisser</span><b class="num">'+dt(st.reste)+'</b></div></div>';
+
+  const fromMS = monthStart(mStart), toMS = monthStart(nextMonth(addMonths(mStart,11)));
+  h += '<div class="card"><div class="row spread"><h3 style="margin:0">Chiffre d\'affaires et dépenses par mois</h3><div class="legend"><span><i style="background:var(--c1)"></i>Chiffre d\'affaires</span><span><i style="background:var(--c2)"></i>Dépenses</span></div></div>'
+     + chartBars(months,[{name:"Chiffre d'affaires",color:"var(--c1)",values:months.map(m=>m.s.ca)},{name:"Dépenses",color:"var(--c2)",values:months.map(m=>m.s.dep)}], v=>dtShort(v), {label:"Chiffre d'affaires et dépenses par mois", tipFmt:v=>dt(Math.round(v))})
+     + '<details><summary>Voir le tableau</summary><div class="tbl"><table><thead><tr><th>Mois</th><th>Chiffre d\'affaires</th><th>Dépenses</th><th>Nuits</th><th>Occupation</th><th>Prix moyen</th></tr></thead><tbody>'
+     + months.map(m=>'<tr><td>'+esc(m.full)+'</td><td class="num">'+dt(Math.round(m.s.ca))+'</td><td class="num">'+dt(m.s.dep)+'</td><td class="num">'+m.s.nts+'</td><td class="num">'+Math.round(m.s.occ*100)+' %</td><td class="num">'+dt(Math.round(m.s.adr))+'</td></tr>').join("")
+     + '</tbody></table></div></details></div>';
+
+  h += '<div class="card"><h3>Taux d\'occupation par mois</h3>'
+     + chartBars(months,[{name:"Occupation",color:"var(--c1)",values:months.map(m=>m.s.occ)}], v=>Math.round(v*100)+" %", {pct:true,label:"Taux d'occupation par mois"})+'</div>';
+
+  const byRoom = S.rooms.map(r=>{ let ca=0,n=0; activeBookings().filter(b=>b.roomId===r.id).forEach(b=>{ const k=nightsIn(b,from,to); n+=k; ca+=k*perNight(b); }); return {label:r.name, value:ca, extra:n+" nuit"+(n>1?"s":"")}; }).filter(i=>i.value>0).sort((a,b)=>b.value-a.value);
+  const src = {}; st.started.forEach(b=>{ const k=b.source||"Autre"; src[k]=(src[k]||0)+1; });
+  const srcItems = Object.entries(src).map(([k,v])=>({label:k,value:v,extra:Math.round(v/st.started.length*100)+" %"})).sort((a,b)=>b.value-a.value);
+  const nat = {}; st.started.forEach(b=>{ const c=client(b.clientId); const k=(c&&c.nationality||"").trim()||"Non renseignée"; nat[k]=(nat[k]||0)+1; });
+  let natItems = Object.entries(nat).map(([k,v])=>({label:k,value:v})).sort((a,b)=>b.value-a.value);
+  if(natItems.length>6){ const rest=natItems.slice(5).reduce((s,i)=>s+i.value,0); natItems=natItems.slice(0,5).concat([{label:"Autres",value:rest}]); }
+  const dow = [0,0,0,0,0,0,0]; activeBookings().forEach(b=>{ for(let d=b.checkIn; d<b.checkOut; d=addDays(d,1)){ if(d>=from && d<to) dow[parse(d).getDay()]++; } });
+  const dowItems = [1,2,3,4,5,6,0].map(i=>({label:["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"][i], value:dow[i]}));
+
+  h += '<div class="cols"><div class="card"><h3>Chiffre d\'affaires par chambre</h3>'+chartH(byRoom, v=>dt(Math.round(v)), "var(--c1)", "Chiffre d'affaires par chambre")+'</div>'
+     + '<div class="card"><h3>Origine des réservations</h3>'+chartH(srcItems, v=>v+" résa"+(v>1?"s":""), "var(--c1)", "Origine des réservations")+'</div>'
+     + '<div class="card"><h3>Nationalité des clients</h3>'+chartH(natItems, v=>v+" séjour"+(v>1?"s":""), "var(--c1)", "Nationalité des clients")+'</div>'
+     + '<div class="card"><h3>Nuits vendues par jour de la semaine</h3>'+(dow.some(Boolean)?chartH(dowItems, v=>v+" nuit"+(v>1?"s":""), "var(--c1)", "Nuits par jour de la semaine"):'<div class="empty">Pas encore de données sur cette période.</div>')+'</div></div>';
   return h;
 }
 
@@ -582,6 +708,7 @@ document.addEventListener("click", async e=>{
   if(a==="cal-today"){ S.calStart=addDays(today(),-1); return render(); }
   if(a==="resa-filter"){ S.resaFilter=el.dataset.f; return render(); }
   if(a==="fin-month"){ S.finMonth=el.dataset.m; return render(); }
+  if(a==="ana-period"){ S.anaPeriod=el.dataset.p; return render(); }
   if(a==="clear-ex"){
     if(!clearArmed){ clearArmed=true; el.textContent="Confirmer : tout supprimer"; el.classList.add("danger","armed"); setTimeout(()=>{clearArmed=false; render();},4000); return; }
     clearArmed=false; el.disabled=true;
@@ -593,6 +720,13 @@ document.addEventListener("click", async e=>{
 document.addEventListener("input", e=>{ if(e.target.id==="clientQ"){ S.clientQ=e.target.value; const pos=e.target.selectionStart; render(); const i=$("#clientQ"); if(i){ i.focus(); try{i.setSelectionRange(pos,pos)}catch(_){} } } });
 document.addEventListener("keydown", e=>{ if(e.key==="Escape" && sheetOpen) closeSheet(); });
 
+// tooltip
+const tipEl = document.createElement("div"); tipEl.className="tip"; tipEl.hidden=true; document.body.appendChild(tipEl);
+document.addEventListener("pointerover", e=>{ const el=e.target.closest("[data-tip]"); if(!el){ tipEl.hidden=true; return; } tipEl.textContent=el.dataset.tip; tipEl.hidden=false; });
+document.addEventListener("pointermove", e=>{ if(tipEl.hidden) return; const w=tipEl.offsetWidth, x=Math.min(window.innerWidth-w-8, Math.max(8,e.clientX-w/2)); tipEl.style.left=x+"px"; tipEl.style.top=Math.max(8,e.clientY-44)+"px"; });
+document.addEventListener("pointerdown", e=>{ if(!e.target.closest("[data-tip]")) tipEl.hidden=true; else { const el=e.target.closest("[data-tip]"); tipEl.textContent=el.dataset.tip; tipEl.hidden=false; const w=tipEl.offsetWidth; tipEl.style.left=Math.min(window.innerWidth-w-8,Math.max(8,e.clientX-w/2))+"px"; tipEl.style.top=Math.max(8,e.clientY-50)+"px"; } });
+window.addEventListener("scroll", ()=>{ tipEl.hidden=true; }, {passive:true});
+let rz; window.addEventListener("resize", ()=>{ clearTimeout(rz); rz=setTimeout(()=>{ if(S.tab==="ana" && !sheetOpen) render(); },200); });
 boot();
 })();
 </script>
