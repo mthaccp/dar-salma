@@ -329,12 +329,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=31"></script>
+<script src="firebase-config.js?v=32"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "31";
+const APP_VERSION = "32";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -398,10 +398,11 @@ function guestInside(r){ const t=today(), now=new Date(); return activeBookings(
 function roomState(r){ if(r.status==="reparation") return "reparation"; if(guestInside(r)) return "occupee"; const ld=lastDeparture(r), since=new Date(r.cleanedAt||AUTO_SINCE); if(ld && ld>since) return "a_nettoyer"; return r.status==="a_nettoyer" ? "a_nettoyer" : "propre"; }
 const isHouse = id => { const r=room(id); return !!(r&&r.wholeHouse); };
 const units = () => S.rooms.filter(r=>!r.wholeHouse);
-const overlaps = (x, rid, ci, co) => x.checkIn<co && ci<x.checkOut && (x.roomId===rid || isHouse(x.roomId) || isHouse(rid));
+const effOut = b => { if(!b.departedAt) return b.checkOut; const d=toISO(new Date(b.departedAt)); return d<b.checkIn ? b.checkIn : (d<b.checkOut ? d : b.checkOut); };
+const overlaps = (x, rid, ci, co) => x.checkIn<co && ci<effOut(x) && (x.roomId===rid || isHouse(x.roomId) || isHouse(rid));
 const conflicts = (rid, ci, co, exceptId) => activeBookings().filter(x=>x.id!==exceptId && overlaps(x,rid,ci,co));
 const weight = b => isHouse(b.roomId) ? Math.max(1,units().length) : 1;
-const occupying = (roomId, day) => activeBookings().find(b=>(b.roomId===roomId || (isHouse(b.roomId) && !isHouse(roomId))) && b.checkIn<=day && day<b.checkOut);
+const occupying = (roomId, day) => activeBookings().find(b=>(b.roomId===roomId || (isHouse(b.roomId) && !isHouse(roomId))) && b.checkIn<=day && day<effOut(b));
 const hasExamples = () => [...S.rooms,...S.clients,...S.bookings,...S.expenses].some(x=>x.example);
 
 // ---------- db ----------
@@ -525,7 +526,7 @@ function bookingItem(b, extra, action){
 function vJour(){
   const t = today();
   const arr = activeBookings().filter(b=>b.checkIn===t);
-  const dep = activeBookings().filter(b=>b.checkOut===t);
+  const dep = activeBookings().filter(b=>b.checkOut===t || (b.departedAt && toISO(new Date(b.departedAt))===t));
   const occ = units().filter(r=>occupying(r.id,t)).length;
   const due = activeBookings().filter(b=>balance(b)>0 && b.checkIn<=t);
   const dueSum = due.reduce((s,b)=>s+balance(b),0);
@@ -588,6 +589,7 @@ const SEC_ICONS = {
 const PEN_SVG='<svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>';
 const hhmm = iso => { const d=new Date(iso); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); };
 function arriveBtn(b){
+  if(b.departedAt) return '<span class="done out" title="Parti">'+CHECK_SVG+'Parti '+hhmm(b.departedAt)+'</span>';
   if(b.arrivedAt) return '<span class="done ok" title="Arrivé">'+CHECK_SVG+'Arrivé '+hhmm(b.arrivedAt)+'</span>';
   return S.canWrite ? '<button class="btn sm go" data-act="arrive" data-id="'+b.id+'">'+IN_SVG+'Arrivé</button>' : '';
 }
