@@ -225,12 +225,12 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.88
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=11"></script>
+<script src="firebase-config.js?v=12"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "11";
+const APP_VERSION = "12";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -369,6 +369,9 @@ function render(){
   let html = "";
   if(!S.canWrite) html += '<div class="banner"><span class="grow">Vous consultez en lecture seule. Demandez au propriétaire de vous donner le niveau « Contributeur » pour modifier.</span></div>';
   if(hasExamples() && S.canWrite) html += '<div class="banner"><span class="pill ex">Exemples</span><span class="grow">Les réservations, clients et dépenses marqués « exemple » servent à montrer l\'application. Les chambres sont modifiables dans Finances › Chambres.</span><button class="btn sm" data-act="clear-ex">Supprimer les exemples</button></div>';
+  if(allLoaded){ const act=activeBookings(), seen=new Set();
+    act.forEach(a=>act.forEach(c=>{ if(a.id<c.id && a.roomId===c.roomId && a.checkIn<c.checkOut && c.checkIn<a.checkOut){ const k=a.id+c.id; if(!seen.has(k)){ seen.add(k);
+      html += '<div class="banner" style="background:var(--bad-soft)"><span class="grow"><b>Double réservation</b> sur '+esc(room(a.roomId)?.name||"")+' : '+esc(client(a.clientId)?.name||"")+' ('+fmtD(a.checkIn)+' → '+fmtD(a.checkOut)+') et '+esc(client(c.clientId)?.name||"")+' ('+fmtD(c.checkIn)+' → '+fmtD(c.checkOut)+'). Modifiez ou annulez l\'une des deux.</span><button class="btn sm" data-act="edit-booking" data-id="'+c.id+'">Ouvrir la plus récente</button></div>'; } } })); }
   if(S.db && !allLoaded) html += '<div class="empty">Chargement des données…</div>';
   else html += ({jour:vJour, cal:vCal, resa:vResa, clients:vClients, fin:vFin, ana:vAna}[S.tab]||vJour)();
   m.innerHTML = '<div class="panel">'+html+'</div>';
@@ -624,7 +627,7 @@ function bookingSheet(b){
       const ci=g("b_in").value, co=g("b_out").value, rid=g("b_room").value;
       const clash = ci&&co ? activeBookings().filter(x=>x.id!==b.id && x.roomId===rid && x.checkIn<co && ci<x.checkOut) : [];
       const r = room(rid), gu = Number(g("b_guests").value)||1;
-      let w = clash.map(x=>'<div class="note warn">Chambre déjà prise du '+fmtD(x.checkIn)+' au '+fmtD(x.checkOut)+' ('+esc(client(x.clientId)?.name||"")+').</div>').join("");
+      let w = clash.map(x=>'<div class="note bad">Impossible : chambre déjà prise du '+fmtD(x.checkIn)+' au '+fmtD(x.checkOut)+' ('+esc(client(x.clientId)?.name||"")+').</div>').join("");
       if(r && g("b_baby").checked && !r.babyBed) w += '<div class="note warn">'+esc(r.name)+' n\'est pas prévue pour un lit bébé.</div>';
       if(r && r.capacity && gu>r.capacity) w += '<div class="note warn">'+esc(r.name)+' accueille '+r.capacity+' personnes maximum.</div>';
       g("b_warn").innerHTML = w;
@@ -638,7 +641,7 @@ function bookingSheet(b){
     g("p_add").addEventListener("click",()=>{ const a=Number(g("p_amt").value); if(!(a>0)){ g("p_amt").focus(); return; } b.payments=(b.payments||[]).concat([{amount:a,method:g("p_meth").value,date:g("p_date").value||today()}]); g("p_amt").value=""; sync(); });
     g("b_pays").addEventListener("click",e=>{ const i=e.target.dataset.rmpay; if(i!=null){ b.payments.splice(Number(i),1); sync(); } });
     if(g("b_cancel")) g("b_cancel").addEventListener("click", async()=>{ b.status="annulee"; if(await save("bookings",b.id,strip(b))){ closeSheet(); toast("Réservation annulée"); } });
-    if(g("b_restore")) g("b_restore").addEventListener("click", async()=>{ b.status="confirmee"; if(await save("bookings",b.id,strip(b))){ closeSheet(); toast("Réservation rétablie"); } });
+    if(g("b_restore")) g("b_restore").addEventListener("click", async()=>{ const cl=activeBookings().filter(x=>x.id!==b.id && x.roomId===b.roomId && x.checkIn<b.checkOut && b.checkIn<x.checkOut); if(cl.length){ g("b_err").innerHTML='<div class="note bad">Impossible de rétablir : la chambre est prise entre-temps du '+fmtD(cl[0].checkIn)+' au '+fmtD(cl[0].checkOut)+'.</div>'; return; } b.status="confirmee"; if(await save("bookings",b.id,strip(b))){ closeSheet(); toast("Réservation rétablie"); } });
     if(g("b_del")) armDelete(g("b_del"), async()=>{ if(await remove("bookings",b.id)){ closeSheet(); toast("Réservation supprimée"); } });
     g("bf").addEventListener("submit", async e=>{
       e.preventDefault();
@@ -651,6 +654,9 @@ function bookingSheet(b){
       if(!cid) return err("Choisissez un client.");
       if(!g("b_room").value) return err("Ajoutez d'abord une chambre.");
       if(nights(g("b_in").value,g("b_out").value)<1) return err("Le départ doit être après l'arrivée.");
+      { const ci=g("b_in").value, co=g("b_out").value, rid=g("b_room").value;
+        const clash = activeBookings().filter(x=>x.id!==b.id && x.roomId===rid && x.checkIn<co && ci<x.checkOut);
+        if(clash.length && b.status!=="annulee"){ const x=clash[0]; return err(esc(room(rid)?.name||"Cette chambre")+" est déjà réservée du "+fmtD(x.checkIn)+" au "+fmtD(x.checkOut)+" ("+esc(client(x.clientId)?.name||"")+"). Choisissez une autre chambre ou d'autres dates."); } }
       Object.assign(b,{clientId:cid, roomId:g("b_room").value, guests:Number(g("b_guests").value)||1, babyBed:g("b_baby").checked, checkIn:g("b_in").value, checkOut:g("b_out").value, pricePerNight:Number(g("b_price").value)||0, source:g("b_source").value, notes:g("b_notes").value.trim()});
       b.total = nights(b.checkIn,b.checkOut)*b.pricePerNight; delete b.example;
       if(await save("bookings",b.id,strip(b))){ closeSheet(); toast("Réservation enregistrée"); }
