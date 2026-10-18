@@ -321,6 +321,27 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 .login-card .lg{width:120px;height:120px;border-radius:14px;margin:0 auto;display:block}
 .login-card h1{font-family:var(--brand);font-weight:600;letter-spacing:.08em;text-align:center;margin:0;font-size:1.4rem}
 .login-card p{text-align:center;margin:-8px 0 4px;color:var(--muted)}
+#printArea{display:none}
+.btn.warnb{border-color:var(--bad);color:var(--bad)}
+.btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px;margin-right:3px}
+.trav{border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;gap:10px;background:var(--bg)}
+@media print{
+  @page{size:A4;margin:12mm}
+  body>*:not(#printArea){display:none!important}
+  body{background:#fff!important;color:#000!important}
+  #printArea{display:block!important;font-family:Arial,Helvetica,sans-serif;color:#000;padding:0 2px}
+  .fiche{border:1.5px solid #000;padding:10mm;margin:0 0 8mm;page-break-inside:avoid;break-inside:avoid}
+  .fiche:nth-of-type(2n){page-break-after:always;break-after:page}
+  .fh{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1.5px solid #000;padding-bottom:4mm;margin-bottom:4mm}
+  .fh b{font-size:15pt;letter-spacing:.1em;display:block}.fh span{font-size:9pt;display:block}
+  .ft{text-align:right;font-weight:700;font-size:13pt}.ft span{font-weight:400}
+  .fiche table{width:100%;border-collapse:collapse;font-size:10.5pt}
+  .fiche th{text-align:left;width:38%;padding:2.2mm 2mm;border-bottom:.5px solid #888;font-weight:600}
+  .fiche td{padding:2.2mm 2mm;border-bottom:.5px solid #888}
+  .fs{display:flex;justify-content:space-between;margin-top:8mm;font-size:9pt}.fs div{width:45%;border-top:.5px solid #000;padding-top:2mm;min-height:16mm}
+  .pics-p{page-break-before:always;break-before:page}
+  .pp{display:grid;grid-template-columns:1fr 1fr;gap:5mm}.pp img{width:100%;max-height:120mm;object-fit:contain;border:.5px solid #888}
+}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(16px);opacity:.6}}}
 </style>
 </head>
@@ -342,6 +363,7 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <main class="wrap" id="main"></main>
 <button id="fab" class="fab" type="button" hidden aria-label="Ajouter"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
 <div id="sheetRoot"></div>
+<div id="printArea" aria-hidden="true"></div>
 <div id="toastRoot"></div>
 <div id="login" class="login" hidden><div class="login-card">
   <img class="lg" src="logo.webp" alt="Logo Dar Salma">
@@ -357,12 +379,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=38"></script>
+<script src="firebase-config.js?v=39"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "38";
+const APP_VERSION = "39";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -596,7 +618,7 @@ function vJour(){
     }).join(""):'<div class="empty">Aucune chambre. Ajoutez-les dans Finances › Chambres.</div>');
   h += '<div class="cols"><div class="colstack">';
   const arrived = arr.filter(b=>b.arrivedAt).length;
-  h += sec("arr","in","Arrivées aujourd\'hui"+(arr.length?' · '+arrived+'/'+arr.length+' arrivé'+(arrived>1?'s':''):''),arr.length,"", arr.length?arr.map(b=>{ const late=!b.arrivedAt && Date.now()>arrivalAt(b).getTime()+3600e3; return bookingItem(b, b.arrivedAt?'':(late?'<b style="color:var(--warn)">attendu à '+(b.arrivalTime||"14:00")+', pas encore arrivé</b>':'attendu à '+(b.arrivalTime||"14:00")), arriveBtn(b)); }).join(""):'<div class="empty">Aucune arrivée aujourd\'hui.</div>');
+  h += sec("arr","in","Arrivées aujourd\'hui"+(arr.length?' · '+arrived+'/'+arr.length+' arrivé'+(arrived>1?'s':''):''),arr.length,(arr.length?'<button class="btn sm ghost" data-act="print-police-day">Fiches de police</button>':''), arr.length?arr.map(b=>{ const late=!b.arrivedAt && Date.now()>arrivalAt(b).getTime()+3600e3; return bookingItem(b, (policeReady(b)?'':'<span style="color:var(--bad);font-weight:600">fiche de police à remplir</span> · ')+(b.arrivedAt?'':(late?'<b style="color:var(--warn)">attendu à '+(b.arrivalTime||"14:00")+', pas encore arrivé</b>':'attendu à '+(b.arrivalTime||"14:00"))), arriveBtn(b)); }).join(""):'<div class="empty">Aucune arrivée aujourd\'hui.</div>');
   if(arrTom.length) h += sec("tom","cal","Arrivées demain",arrTom.length,"", arrTom.map(b=>bookingItem(b)).join(""));
   const departed = dep.filter(b=>b.departedAt).length;
   h += sec("out","out","Départs aujourd\'hui"+(dep.length?' · '+departed+'/'+dep.length+' parti'+(departed>1?'s':''):''),dep.length,"", dep.length?dep.map(b=>bookingItem(b, b.departedAt?'':'départ avant '+(S.settings.checkoutTime||"12:00"), departBtn(b))).join(""):'<div class="empty">Aucun départ aujourd\'hui.</div>');
@@ -884,6 +906,83 @@ function downloadIcs(list, name){
   toast("Ouvrez le fichier pour l'ajouter au calendrier");
 }
 
+// ---------- fiche de police ----------
+const TF = [
+  ["nom","Nom","text"],["prenom","Prénom","text"],["naissance","Date de naissance","date"],["lieuNaissance","Lieu de naissance","text"],
+  ["nationalite","Nationalité","text"],["profession","Profession","text"],["adresse","Domicile habituel","text"],
+  ["pieceType","Pièce","select"],["pieceNum","N° de la pièce","text"],["pieceDate","Délivrée le","date"],["pieceLieu","Délivrée à","text"]
+];
+function splitName(n){ const p=String(n||"").trim().split(/\s+/); if(p.length<2) return {prenom:p[0]||"", nom:""}; return {prenom:p.slice(0,-1).join(" "), nom:p[p.length-1]}; }
+function travelersOf(b){
+  const c = client(b.clientId)||{};
+  let list = Array.isArray(b.travelers) && b.travelers.length ? JSON.parse(JSON.stringify(b.travelers)) : [];
+  if(!list.length){ const sn=splitName(c.name); list=[{nom:sn.nom, prenom:sn.prenom, nationalite:c.nationality||"", pieceType:"Passeport", pieceNum:c.idDoc||"", adresse:"", profession:"", naissance:"", lieuNaissance:"", pieceDate:"", pieceLieu:""}]; }
+  const ad = Math.max(1, b.adults!=null ? b.adults : (b.guests||1)-(b.children||0));
+  while(list.length < ad) list.push({nom:"",prenom:"",pieceType:"Passeport"});
+  return list;
+}
+const fdate = d => d ? d.split("-").reverse().join("/") : "";
+function ficheHtml(b, t, i, n){
+  const r=room(b.roomId), ST=S.settings||{};
+  const row=(l,v)=>'<tr><th>'+l+'</th><td>'+esc(v||"")+'</td></tr>';
+  return '<div class="fiche"><div class="fh"><div><b>DAR SALMA</b><span>Maison d\'hôtes'+(ST.address?' · '+esc(ST.address):'')+(ST.housePhone?' · '+esc(ST.housePhone):'')+'</span></div><div class="ft">FICHE DE POLICE<span>Voyageur '+(i+1)+' / '+n+'</span></div></div>'
+    + '<table>'+row("Nom",(t.nom||"").toUpperCase())+row("Prénom",t.prenom)+row("Date et lieu de naissance",[fdate(t.naissance),t.lieuNaissance].filter(Boolean).join(" à "))
+    + row("Nationalité",t.nationalite)+row("Profession",t.profession)+row("Domicile habituel",t.adresse)
+    + row("Pièce d'identité",[t.pieceType,t.pieceNum].filter(Boolean).join(" n° "))+row("Délivrée le / à",[fdate(t.pieceDate),t.pieceLieu].filter(Boolean).join(" à "))
+    + row("Date d'arrivée",fdate(b.checkIn)+(b.arrivedAt?" à "+hhmm(b.arrivedAt):""))+row("Date de départ prévue",fdate(b.checkOut))
+    + row("Chambre",r?r.name:"")+row("Venant de",b.provenance)+row("Se rendant à",b.destination)
+    + row("Accompagné de", (b.children?b.children+" enfant(s) de moins de 12 ans":"")+(b.babyBed?(b.children?", ":"")+"bébé":""))
+    + '</table><div class="fs"><div>Signature du voyageur</div><div>Cachet et signature de l\'hôte</div></div></div>';
+}
+async function printFiches(bookings){
+  const area = $("#printArea"); if(!area) return;
+  toast("Préparation des fiches…");
+  let html = "";
+  for(const b of bookings){
+    const list = travelersOf(b);
+    list.forEach((t,i)=>{ html += ficheHtml(b,t,i,list.length); });
+    const ph = await loadPieces("bookingId", b.id);
+    if(ph.length){ const c=client(b.clientId); html += '<div class="fiche pics-p"><div class="fh"><div><b>DAR SALMA</b><span>Copies des pièces d\'identité</span></div><div class="ft">'+esc(c?c.name:"")+'<span>'+fdate(b.checkIn)+' → '+fdate(b.checkOut)+'</span></div></div><div class="pp">'+ph.map(p=>'<img src="'+p.data+'" alt="">').join("")+'</div></div>'; }
+  }
+  if(!html){ toast("Aucune fiche à imprimer"); return; }
+  area.innerHTML = html;
+  const imgs=[...area.querySelectorAll("img")]; await Promise.all(imgs.map(im=>im.complete?0:new Promise(r=>{im.onload=im.onerror=r;})));
+  setTimeout(()=>{ window.print(); }, 150);
+}
+window.addEventListener("afterprint", ()=>{ const a=$("#printArea"); if(a) a.innerHTML=""; });
+
+function policeSheet(b0, after){
+  const b = JSON.parse(JSON.stringify(b0)); let list = travelersOf(b);
+  const pieceOpt = v => ["Passeport","CIN","Carte de séjour","Autre"].map(x=>opt(x,x,v||"Passeport")).join("");
+  const draw = () => list.map((t,i)=>'<div class="trav"><div class="row spread"><h3 style="margin:0">Voyageur '+(i+1)+(i===0?' (client principal)':'')+'</h3>'+(i>0&&S.canWrite?'<button type="button" class="btn sm ghost" data-trm="'+i+'">Retirer</button>':'')+'</div><div class="g2">'
+    + TF.map(([k,l,ty])=>'<label>'+l+(ty==="select"?'<select data-ti="'+i+'" data-tk="'+k+'">'+pieceOpt(t[k])+'</select>':'<input data-ti="'+i+'" data-tk="'+k+'" type="'+ty+'" value="'+esc(t[k]||"")+'"'+(k==="nom"?' autocapitalize="characters"':'')+'>')+'</label>').join("")+'</div></div>').join("");
+  openSheet('<form class="f" id="pf"><div class="row spread"><h2>Fiche de police</h2><button type="button" class="btn ghost" data-act="close">Fermer</button></div>'
+    + '<p style="margin:0;color:var(--muted);font-size:.88rem">'+esc(client(b.clientId)?.name||"")+' · '+fmtD(b.checkIn)+' → '+fmtD(b.checkOut)+' · '+esc(room(b.roomId)?.name||"")+'. Une fiche est imprimée par adulte, avec les copies des pièces d\'identité de la réservation.</p>'
+    + '<div class="g2"><label>Venant de (ville, pays)<input id="p_from" value="'+esc(b.provenance||"")+'"></label><label>Se rendant à<input id="p_to" value="'+esc(b.destination||"")+'"></label></div>'
+    + '<div id="p_list" style="display:grid;gap:14px"></div>'
+    + (S.canWrite?'<button type="button" class="btn sm" id="p_add" style="justify-self:start">+ Ajouter un voyageur</button>':'')
+    + '<div id="p_err"></div><div class="row spread"><button type="button" class="btn" id="p_print">Imprimer</button><button class="btn primary" type="submit"'+dis()+'>Enregistrer</button></div></form>', sh=>{
+    const g=id=>$("#"+id,sh);
+    const paint=()=>{ g("p_list").innerHTML=draw(); };
+    paint();
+    g("p_list").addEventListener("input", e=>{ const i=e.target.dataset.ti; if(i==null) return; list[Number(i)][e.target.dataset.tk]=e.target.value; });
+    g("p_list").addEventListener("change", e=>{ const i=e.target.dataset.ti; if(i==null) return; list[Number(i)][e.target.dataset.tk]=e.target.value; });
+    g("p_list").addEventListener("click", e=>{ const i=e.target.dataset.trm; if(i!=null){ list.splice(Number(i),1); paint(); } });
+    if(g("p_add")) g("p_add").addEventListener("click", ()=>{ list.push({nom:"",prenom:"",pieceType:"Passeport"}); paint(); });
+    const collect = () => { b.travelers = list.map(t=>{ const o={}; TF.forEach(([k])=>o[k]=String(t[k]||"").trim()); return o; }); b.provenance=g("p_from").value.trim(); b.destination=g("p_to").value.trim(); };
+    const persist = async () => {
+      collect();
+      try{ await S.db.collection("bookings").doc(b.id).update({travelers:b.travelers, provenance:b.provenance, destination:b.destination});
+        const m=b.travelers[0], c=client(b.clientId);
+        if(c && m){ const upd={}; if(m.nationalite && !c.nationality) upd.nationality=m.nationalite; const id=[m.pieceType,m.pieceNum].filter(Boolean).join(" "); if(m.pieceNum && c.idDoc!==id) upd.idDoc=id; if(Object.keys(upd).length) await S.db.collection("clients").doc(c.id).update(upd); }
+        return true; }catch(x){ g("p_err").innerHTML='<div class="note bad">Enregistrement impossible. Vérifiez la connexion.</div>'; return false; }
+    };
+    g("p_print").addEventListener("click", async ()=>{ if(S.canWrite) await persist(); else collect(); printFiches([b]); });
+    g("pf").addEventListener("submit", async e=>{ e.preventDefault(); if(await persist()){ closeSheet(); toast("Fiche de police enregistrée"); if(after) after(); } });
+  });
+}
+const policeReady = b => { const t=(b.travelers||[])[0]; return !!(t && t.nom && t.pieceNum); };
+
 // ---------- pièces d'identité ----------
 async function compressImage(file){
   const url = URL.createObjectURL(file);
@@ -981,10 +1080,10 @@ function bookingSheet(b){
     g("b_client").addEventListener("change",sync);
     let wEdited = false;
     const drawStay = () => { const el=g("b_stay"); if(!el) return;
-      el.innerHTML = (b.arrivedAt ? '<span class="done ok">'+CHECK_SVG+'Arrivé le '+fmtD(toISO(new Date(b.arrivedAt)))+' à '+hhmm(b.arrivedAt)+'</span>'+(S.canWrite&&!b.departedAt?'<button type="button" class="btn sm ghost" data-stay="arrivedAt" data-v="">Annuler l\'arrivée</button>':'') : (S.canWrite?'<button type="button" class="btn sm go" data-stay="arrivedAt" data-v="now">'+IN_SVG+'Marquer l\'arrivée</button>':'<span class="s">Pas encore arrivé</span>'))
+      el.innerHTML = '<button type="button" class="btn sm'+(policeReady(b)?'':' warnb')+'" data-police="1">'+(policeReady(b)?CHECK_SVG:'')+'Fiche de police</button>' + (b.arrivedAt ? '<span class="done ok">'+CHECK_SVG+'Arrivé le '+fmtD(toISO(new Date(b.arrivedAt)))+' à '+hhmm(b.arrivedAt)+'</span>'+(S.canWrite&&!b.departedAt?'<button type="button" class="btn sm ghost" data-stay="arrivedAt" data-v="">Annuler l\'arrivée</button>':'') : (S.canWrite?'<button type="button" class="btn sm go" data-stay="arrivedAt" data-v="now">'+IN_SVG+'Marquer l\'arrivée</button>':'<span class="s">Pas encore arrivé</span>'))
         + (b.departedAt ? '<span class="done out">'+CHECK_SVG+'Parti le '+fmtD(toISO(new Date(b.departedAt)))+' à '+hhmm(b.departedAt)+'</span>'+(S.canWrite?'<button type="button" class="btn sm ghost" data-stay="departedAt" data-v="">Annuler le départ</button>':'') : (S.canWrite?'<button type="button" class="btn sm go2" data-stay="departedAt" data-v="now">'+OUT_SVG+'Marquer le départ</button>':''));
     };
-    if(g("b_stay")){ drawStay(); g("b_stay").addEventListener("click", async e=>{ const t=e.target.closest("[data-stay]"); if(!t) return; const f=t.dataset.stay, v=t.dataset.v==="now"?new Date().toISOString():null;
+    if(g("b_stay")){ drawStay(); g("b_stay").addEventListener("click", async e=>{ if(e.target.closest("[data-police]")){ const cur=S.bookings.find(x=>x.id===b.id)||b; policeSheet(cur); return; } const t=e.target.closest("[data-stay]"); if(!t) return; const f=t.dataset.stay, v=t.dataset.v==="now"?new Date().toISOString():null;
       if(await markStay(b.id, f, v)){ b[f]=v; if(f==="departedAt" && v && !b.arrivedAt) b.arrivedAt=v; drawStay(); toast(f==="arrivedAt"?(v?"Arrivée enregistrée":"Arrivée annulée"):(v?"Départ enregistré, chambre à nettoyer":"Départ annulé")); } }); }
     const curClient = () => { const v=g("b_client").value; if(v==="__new") return {name:g("nc_name").value.trim(), phone:getPhone(g,"nc_phone")}; return client(v)||{}; };
     const waText = () => {
@@ -1099,7 +1198,7 @@ function clientSheet(c){
   openSheet('<form class="f" id="cf"><div class="row spread"><h2>'+(isNew?'Nouveau client':'Fiche client')+'</h2><button type="button" class="btn ghost" data-act="close">Fermer</button></div>'
     + '<label>Nom complet<input id="c_name" value="'+esc(c.name)+'" autocomplete="off"></label>'
     + phoneField("c_phone","Téléphone",c.phone) + '<label>Nationalité<input id="c_nat" value="'+esc(c.nationality)+'"></label>'
-    + '<label>Pièce d\'identité (CIN / passeport)<input id="c_id" value="'+esc(c.idDoc)+'" placeholder="Type et numéro"></label>'
+    + '<label>Pièce d\'identité (type et numéro)<input id="c_id" value="'+esc(c.idDoc)+'" placeholder="Ex. Passeport 12AB34567"></label>'
     + '<label>Notes<textarea id="c_notes" rows="2" placeholder="Préférences, allergies, habitué…">'+esc(c.notes)+'</textarea></label>'
     + (stays.length?'<div><h3>Séjours</h3><div class="list">'+stays.map(b=>bookingItem(b)).join("")+'</div></div>':'')
     + (!isNew?'<div><h3>Pièces d\'identité</h3><div class="pics" id="c_pics"><span class="s" style="color:var(--muted);font-size:.85rem">Chargement…</span></div></div>':'')
@@ -1225,6 +1324,7 @@ document.addEventListener("click", async e=>{
   if(a==="new-room") return roomSheet(null);
   if(a==="edit-room"){ const r=room(id); if(r) roomSheet(r); return; }
   if(a==="rooms-sheet") return roomsSheet();
+  if(a==="print-police-day"){ const t=today(); return printFiches(activeBookings().filter(b=>b.checkIn===t)); }
   if(a==="goto-set"){ S.tab="set"; store.set("ds_tab","set"); render(); window.scrollTo(0,0); return; }
   if(a==="logout-btn"){ $("#logout").click(); return; }
   if(a==="arrive"||a==="depart"){ const b=S.bookings.find(x=>x.id===id); if(!b) return; el.disabled=true; const now=new Date().toISOString();
