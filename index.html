@@ -173,11 +173,11 @@ form.f{display:grid;gap:12px}
   <img class="lg" src="logo.webp" alt="Logo Dar Salma">
   <h1>Dar Salma</h1><p>Espace de gestion</p>
   <form class="f" id="lf">
-    <label>E-mail<input id="l_email" type="email" autocomplete="username" required></label>
+    <label>Identifiant<input id="l_email" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required></label>
     <label>Mot de passe<input id="l_pass" type="password" autocomplete="current-password" required></label>
     <div id="l_err"></div>
     <button class="btn primary" type="submit" id="l_go">Se connecter</button>
-    <button class="btn ghost" type="button" id="l_reset">Mot de passe oublié ?</button>
+    <p style="margin:0;font-size:.85rem">Mot de passe oublié ? Demandez à l'administrateur de le réinitialiser.</p>
   </form>
 </div></div>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -267,28 +267,24 @@ async function boot(){
   const db = firebase.firestore();
   try{ await db.enablePersistence({synchronizeTabs:true}); }catch(e){}
   const auth = firebase.auth();
+  const toEmail = v => { v = v.trim().toLowerCase(); return v.includes("@") ? v : v + "@darsalma.local"; };
   const lerr = m => { $("#l_err").innerHTML = m ? '<div class="note bad">'+m+'</div>' : ''; };
   $("#lf").addEventListener("submit", async e=>{
     e.preventDefault(); lerr(""); $("#l_go").disabled=true;
-    try{ await auth.signInWithEmailAndPassword($("#l_email").value.trim(), $("#l_pass").value); }
+    try{ await auth.signInWithEmailAndPassword(toEmail($("#l_email").value), $("#l_pass").value); }
     catch(x){
       const c = x && x.code;
-      lerr(["auth/invalid-credential","auth/wrong-password","auth/user-not-found","auth/invalid-login-credentials","auth/invalid-email"].includes(c) ? "E-mail ou mot de passe incorrect."
+      lerr(["auth/invalid-credential","auth/wrong-password","auth/user-not-found","auth/invalid-login-credentials","auth/invalid-email"].includes(c) ? "Identifiant ou mot de passe incorrect."
         : c==="auth/too-many-requests" ? "Trop d'essais. Réessayez dans quelques minutes."
         : c==="auth/network-request-failed" ? "Pas de connexion internet."
         : "Connexion impossible. Vérifiez vos informations.");
     }
     $("#l_go").disabled=false;
   });
-  $("#l_reset").addEventListener("click", async ()=>{
-    const em=$("#l_email").value.trim(); if(!em){ lerr("Saisissez d'abord votre e-mail."); $("#l_email").focus(); return; }
-    try{ await auth.sendPasswordResetEmail(em); $("#l_err").innerHTML='<div class="note info">Un e-mail de réinitialisation a été envoyé à '+esc(em)+'.</div>'; }
-    catch(x){ lerr("Envoi impossible. Vérifiez l'adresse e-mail."); }
-  });
   $("#logout").addEventListener("click", ()=>auth.signOut());
   auth.onAuthStateChanged(u=>{
     if(u){
-      $("#login").hidden=true; $("#logout").hidden=false;
+      $("#login").hidden=true; $("#logout").hidden=false; $("#logout").title = (u.email||"").replace("@darsalma.local","");
       if(!S.db){ S.db=db; $("#sync").textContent="Connexion…";
         sub("rooms",(a,b)=>(a.order??0)-(b.order??0));
         sub("clients",(a,b)=>String(a.name).localeCompare(String(b.name),"fr"));

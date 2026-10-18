@@ -1,11 +1,12 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Seules ces adresses e-mail peuvent lire et modifier les données de Dar Salma.
+    // Seuls ces identifiants peuvent lire et modifier les données de Dar Salma.
+    // Un identifiant « ghazi » correspond à « ghazi@darsalma.local » dans Firebase.
     function autorise() {
       return request.auth != null && request.auth.token.email in [
-        'TON_EMAIL@gmail.com',
-        'EMAIL_DE_TA_MERE@gmail.com'
+        'IDENTIFIANT1@darsalma.local',
+        'IDENTIFIANT2@darsalma.local'
       ];
     }
     match /{document=**} {

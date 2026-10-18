@@ -18,9 +18,9 @@ Ce projet est indépendant de M&T HACCP : dépôt séparé, base de données sé
 1. Allez sur https://console.firebase.google.com et connectez-vous avec un compte Google.
 2. Cliquez sur **Créer un projet** et nommez-le `dar-salma`. Google Analytics n'est pas nécessaire.
 3. Dans le menu de gauche, ouvrez **Build › Authentication**, cliquez sur **Commencer**, puis activez **Adresse e-mail/Mot de passe**.
-4. Toujours dans Authentication, onglet **Utilisateurs**, cliquez sur **Ajouter un utilisateur**. Créez votre compte, puis celui de votre mère (e-mail et mot de passe).
+4. Toujours dans Authentication, onglet **Utilisateurs**, cliquez sur **Ajouter un utilisateur**. La connexion se fait par **identifiant** : pour un identifiant `ghazi`, saisissez l'adresse `ghazi@darsalma.local` (en minuscules) et un mot de passe d'au moins 6 caractères. Faites de même pour chaque personne. Aucun e-mail n'est envoyé à ces adresses.
 5. Ouvrez **Build › Firestore Database**, cliquez sur **Créer une base de données**, choisissez l'emplacement **europe-west** et le **mode production**.
-6. Dans Firestore, onglet **Règles** : collez le contenu de `firestore.rules`, remplacez les deux adresses e-mail par les vôtres, puis cliquez sur **Publier**.
+6. Dans Firestore, onglet **Règles** : collez le contenu de `firestore.rules`, remplacez les deux lignes par vos identifiants (au format `identifiant@darsalma.local`), puis cliquez sur **Publier**.
 7. Cliquez sur la roue dentée › **Paramètres du projet** › **Vos applications** › icône **</>** (Web). Nommez l'application `Dar Salma` et ne cochez pas « Hosting ». Copiez le bloc `firebaseConfig` affiché et collez ses valeurs dans `firebase-config.js`.
 
 ## Étape 2 – Mettre l'application en ligne (GitHub Pages)
@@ -33,13 +33,13 @@ Ce projet est indépendant de M&T HACCP : dépôt séparé, base de données sé
 
 ## Étape 3 – Utilisation
 
-- Ouvrez l'adresse et connectez-vous avec l'e-mail et le mot de passe créés à l'étape 1.
+- Ouvrez l'adresse et connectez-vous avec votre identifiant (par exemple `ghazi`, sans la partie @darsalma.local) et votre mot de passe.
 - À la première connexion, les 6 chambres et le studio sont créés automatiquement. Les prix et les détails se modifient dans **Finances › Chambres**.
 - **Sur téléphone** : dans le menu du navigateur, choisissez **Ajouter à l'écran d'accueil** (sur iPhone : bouton Partager puis « Sur l'écran d'accueil »). L'application s'ouvre ensuite comme une vraie appli, avec le logo.
-- **Mot de passe oublié** : le lien sur l'écran de connexion envoie un e-mail de réinitialisation.
+- **Mot de passe oublié** : dans Firebase › Authentication › Utilisateurs, supprimez l'utilisateur puis recréez-le avec le même identifiant et un nouveau mot de passe. Les données ne sont pas perdues.
 
 ## Sécurité
 
-- Seules les adresses e-mail listées dans les règles Firestore peuvent lire ou modifier les données, même si quelqu'un trouve l'adresse du site.
+- Seuls les identifiants listés dans les règles Firestore peuvent lire ou modifier les données, même si quelqu'un trouve l'adresse du site.
 - La clé dans `firebase-config.js` peut être publique : c'est normal pour Firebase. La protection vient des règles et des comptes.
 - L'offre gratuite de Firebase (plan Spark) suffit largement pour une maison d'hôtes.
