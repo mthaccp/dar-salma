@@ -275,6 +275,10 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 .cols3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
 @media (max-width:1000px){.cols3{grid-template-columns:1fr 1fr}}
 @media (max-width:640px){.cols3{grid-template-columns:1fr}}
+.subtabs{display:flex;gap:0;border-bottom:2px solid var(--line)}
+.subtabs button{border:none;background:none;padding:10px 14px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;display:inline-flex;align-items:center;gap:6px}
+.subtabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+.subtabs .cnt{background:var(--bad);color:#fff;border-radius:999px;font-size:.7rem;padding:1px 7px}
 .r1{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .r1 .t{min-width:0}
 .sm-only{display:none}
@@ -379,12 +383,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=40"></script>
+<script src="firebase-config.js?v=41"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "40";
+const APP_VERSION = "41";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -564,7 +568,7 @@ function render(){
   else html += ({jour:vJour, cal:vCal, resa:vResa, clients:vClients, fin:vFin, ana:vAna, set:vSet}[S.tab]||vJour)();
   m.innerHTML = '<div class="panel">'+html+'</div>';
   { const fab=$("#fab"), map={jour:["new-booking","Nouvelle réservation"],cal:["new-booking","Nouvelle réservation"],resa:["new-booking","Nouvelle réservation"],clients:["new-client","Nouveau client"],fin:["new-expense","Nouvelle dépense"],ana:["new-booking","Nouvelle réservation"],set:["new-room","Nouvelle chambre"]}[S.tab];
-    if(fab){ fab.hidden = !(S.db && S.canWrite && map); if(map){ fab.dataset.act=map[0]; fab.setAttribute("aria-label",map[1]); fab.title=map[1]; } } }
+    if(fab){ fab.hidden = !(S.db && S.canWrite && map) || (S.tab==="clients" && S.clientSub==="police"); if(map){ fab.dataset.act=map[0]; fab.setAttribute("aria-label",map[1]); fab.title=map[1]; } } }
 }
 
 function bookingItem(b, extra, action){
@@ -618,7 +622,7 @@ function vJour(){
     }).join(""):'<div class="empty">Aucune chambre. Ajoutez-les dans Finances › Chambres.</div>');
   h += '<div class="cols"><div class="colstack">';
   const arrived = arr.filter(b=>b.arrivedAt).length;
-  h += sec("arr","in","Arrivées aujourd\'hui"+(arr.length?' · '+arrived+'/'+arr.length+' arrivé'+(arrived>1?'s':''):''),arr.length,(arr.length?'<button class="btn sm ghost" data-act="print-police-day">Fiches de police</button>':''), arr.length?arr.map(b=>{ const late=!b.arrivedAt && Date.now()>arrivalAt(b).getTime()+3600e3; return bookingItem(b, (policeReady(b)?'':'<span style="color:var(--bad);font-weight:600">fiche de police à remplir</span> · ')+(b.arrivedAt?'':(late?'<b style="color:var(--warn)">attendu à '+(b.arrivalTime||"14:00")+', pas encore arrivé</b>':'attendu à '+(b.arrivalTime||"14:00"))), arriveBtn(b)); }).join(""):'<div class="empty">Aucune arrivée aujourd\'hui.</div>');
+  h += sec("arr","in","Arrivées aujourd\'hui"+(arr.length?' · '+arrived+'/'+arr.length+' arrivé'+(arrived>1?'s':''):''),arr.length,(arr.length?'<button class="btn sm ghost" data-act="goto-police">Fiches de police</button>':''), arr.length?arr.map(b=>{ const late=!b.arrivedAt && Date.now()>arrivalAt(b).getTime()+3600e3; return bookingItem(b, (policeReady(b)?'':'<span style="color:var(--bad);font-weight:600">fiche de police à remplir</span> · ')+(b.arrivedAt?'':(late?'<b style="color:var(--warn)">attendu à '+(b.arrivalTime||"14:00")+', pas encore arrivé</b>':'attendu à '+(b.arrivalTime||"14:00"))), arriveBtn(b)); }).join(""):'<div class="empty">Aucune arrivée aujourd\'hui.</div>');
   if(arrTom.length) h += sec("tom","cal","Arrivées demain",arrTom.length,"", arrTom.map(b=>bookingItem(b)).join(""));
   const departed = dep.filter(b=>b.departedAt).length;
   h += sec("out","out","Départs aujourd\'hui"+(dep.length?' · '+departed+'/'+dep.length+' parti'+(departed>1?'s':''):''),dep.length,"", dep.length?dep.map(b=>bookingItem(b, b.departedAt?'':'départ avant '+(S.settings.checkoutTime||"12:00"), departBtn(b))).join(""):'<div class="empty">Aucun départ aujourd\'hui.</div>');
@@ -708,11 +712,37 @@ function vResa(){
   return h;
 }
 
+function vPolice(){
+  const t=today(), f=S.polFilter||"todo", q=(S.polQ||"").trim().toLowerCase();
+  let list = activeBookings().slice();
+  if(q) list = list.filter(b=>{ const c=client(b.clientId)||{}; return [c.name,c.phone,(b.travelers||[]).map(x=>x.nom+" "+x.prenom+" "+x.pieceNum).join(" ")].join(" ").toLowerCase().includes(q); });
+  const todoAll = activeBookings().filter(b=>!policeReady(b) && b.checkOut>=addDays(t,-30));
+  if(f==="todo") list = list.filter(b=>!policeReady(b) && b.checkOut>=addDays(t,-30)).sort((a,b)=>a.checkIn.localeCompare(b.checkIn));
+  else if(f==="today") list = list.filter(b=>b.checkIn===t).sort((a,b)=>(a.arrivalTime||"").localeCompare(b.arrivalTime||""));
+  else if(f==="done") list = list.filter(policeReady).sort((a,b)=>b.checkIn.localeCompare(a.checkIn));
+  else list = list.sort((a,b)=>b.checkIn.localeCompare(a.checkIn));
+  const seg=[["todo","À remplir"+(todoAll.length?" ("+todoAll.length+")":"")],["today","Arrivées du jour"],["done","Remplies"],["all","Toutes"]];
+  let h = '<div class="seg" role="tablist">'+seg.map(([k,l])=>'<button class="'+(k===f?'on':'')+'" data-act="pol-filter" data-f="'+k+'">'+l+'</button>').join("")+'</div>';
+  h += '<input class="search" id="polQ" type="search" placeholder="Rechercher un nom, un n° de passeport…" value="'+esc(S.polQ||"")+'">';
+  const rows = list.map(b=>{ const c=client(b.clientId), ok=policeReady(b), tr=b.travelers||[];
+    const who = ok ? tr.map(x=>[x.prenom,(x.nom||"").toUpperCase()].filter(Boolean).join(" ")).join(", ") : esc(c?c.name:"");
+    return '<div class="item"><span class="roomtag">'+esc(room(b.roomId)?.short||"?")+'</span><div class="grow"><div class="r1"><span class="t">'+esc(c?c.name:"Client")+'</span>'+(ok?'<span class="pill ok">✓ Remplie</span>':'<span class="pill bad">À remplir</span>')+'</div><div class="s">'+fmtD(b.checkIn)+' → '+fmtD(b.checkOut)+' · '+(b.adults!=null?b.adults:(b.guests||1))+' adulte(s)'+(ok?' · '+esc(who):'')+'</div></div><div class="ctrl"><button class="btn sm'+(ok?'':' primary')+'" data-act="pol-edit" data-id="'+b.id+'">'+(ok?'Modifier':'Remplir')+'</button>'+(ok?'<button class="btn sm" data-act="pol-print" data-id="'+b.id+'">Imprimer</button>':'')+'</div></div>'; }).join("");
+  const printable = list.filter(policeReady);
+  h += sec("due","card","Fiches de police",list.length,(printable.length>1?'<button class="btn sm ghost" data-act="pol-print-list">Tout imprimer ('+printable.length+')</button>':''), rows || '<div class="empty">'+(f==="todo"?'Toutes les fiches sont remplies.':'Aucune fiche dans cette liste.')+'</div>');
+  return h;
+}
 function vClients(){
+  const sub = S.clientSub||"clients";
+  const missing = activeBookings().filter(b=>!policeReady(b) && b.checkOut>=addDays(today(),-30)).length;
+  let top = '<div class="row spread"><h2>Clients</h2>'+(sub==="clients"?'<button class="btn primary hm" data-act="new-client"'+(S.canWrite?'':' disabled')+'>+ Client</button>':'')+'</div>'
+    + '<div class="subtabs"><button class="'+(sub==="clients"?'on':'')+'" data-act="client-sub" data-s="clients">Liste des clients</button><button class="'+(sub==="police"?'on':'')+'" data-act="client-sub" data-s="police">Fiches de police'+(missing?'<span class="cnt">'+missing+'</span>':'')+'</button></div>';
+  if(sub==="police") return top + vPolice();
+  return top + vClientsList();
+}
+function vClientsList(){
   const q = S.clientQ.trim().toLowerCase();
   const list = S.clients.filter(c=>!q || [c.name,c.phone,c.nationality,c.idDoc].join(" ").toLowerCase().includes(q));
-  let h = '<div class="row spread"><h2>Clients</h2><button class="btn primary hm" data-act="new-client"'+(S.canWrite?'':' disabled')+'>+ Client</button></div>';
-  h += '<div class="row"><input class="search" id="clientQ" type="search" placeholder="Rechercher un nom, un téléphone…" value="'+esc(S.clientQ)+'"></div>';
+  let h = '<div class="row"><input class="search" id="clientQ" type="search" placeholder="Rechercher un nom, un téléphone…" value="'+esc(S.clientQ)+'"></div>';
   h += '<div class="list">'+(list.length?list.map(c=>{
     const st = S.bookings.filter(b=>b.clientId===c.id && b.status!=="annulee");
     const polMissing = st.filter(b=>b.checkOut>=today() && !policeReady(b)).length;
@@ -1330,6 +1360,12 @@ document.addEventListener("click", async e=>{
   if(a==="edit-room"){ const r=room(id); if(r) roomSheet(r); return; }
   if(a==="rooms-sheet") return roomsSheet();
   if(a==="print-police-day"){ const t=today(); return printFiches(activeBookings().filter(b=>b.checkIn===t)); }
+  if(a==="goto-police"){ S.tab="clients"; S.clientSub="police"; S.polFilter="today"; store.set("ds_tab","clients"); render(); window.scrollTo(0,0); return; }
+  if(a==="client-sub"){ S.clientSub=el.dataset.s; return render(); }
+  if(a==="pol-filter"){ S.polFilter=el.dataset.f; return render(); }
+  if(a==="pol-edit"){ const b=S.bookings.find(x=>x.id===id); if(b) policeSheet(b); return; }
+  if(a==="pol-print"){ const b=S.bookings.find(x=>x.id===id); if(b) printFiches([b]); return; }
+  if(a==="pol-print-list"){ const t=today(), f=S.polFilter||"todo"; let l=activeBookings().filter(policeReady); if(f==="today") l=l.filter(b=>b.checkIn===t); return printFiches(l.sort((x,y)=>x.checkIn.localeCompare(y.checkIn))); }
   if(a==="goto-set"){ S.tab="set"; store.set("ds_tab","set"); render(); window.scrollTo(0,0); return; }
   if(a==="logout-btn"){ $("#logout").click(); return; }
   if(a==="arrive"||a==="depart"){ const b=S.bookings.find(x=>x.id===id); if(!b) return; el.disabled=true; const now=new Date().toISOString();
@@ -1355,7 +1391,7 @@ document.addEventListener("click", async e=>{
     toast("Exemples supprimés"); return;
   }
 });
-document.addEventListener("input", e=>{ const id=e.target.id; if(id==="clientQ"||id==="resaQ"){ if(id==="clientQ") S.clientQ=e.target.value; else S.resaQ=e.target.value; const pos=e.target.selectionStart; render(); const i=$("#"+id); if(i){ i.focus(); try{i.setSelectionRange(pos,pos)}catch(_){} } } });
+document.addEventListener("input", e=>{ const id=e.target.id; if(id==="clientQ"||id==="resaQ"||id==="polQ"){ if(id==="clientQ") S.clientQ=e.target.value; else if(id==="polQ") S.polQ=e.target.value; else S.resaQ=e.target.value; const pos=e.target.selectionStart; render(); const i=$("#"+id); if(i){ i.focus(); try{i.setSelectionRange(pos,pos)}catch(_){} } } });
 document.addEventListener("keydown", e=>{ if(e.key==="Escape" && sheetOpen) closeSheet(); });
 
 // tooltip
