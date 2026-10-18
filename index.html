@@ -160,7 +160,7 @@ form.f{display:grid;gap:12px}
 .seg button.on{background:var(--surface);color:var(--fg)}
 @media (max-width:760px){
   nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--surface);border-top:1px solid var(--line);justify-content:space-around;padding:6px max(6px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px))}
-  nav.tabs button{padding:6px 2px;font-size:.7rem;flex:1 1 0;min-width:0;color:var(--muted);display:grid;justify-items:center;gap:2px;border-radius:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  nav.tabs button{padding:6px 1px;font-size:.64rem;flex:1 1 0;min-width:0;color:var(--muted);display:grid;justify-items:center;gap:2px;border-radius:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   nav.tabs .ic{display:block}
   nav.tabs .ll{display:none}
   nav.tabs .ls{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
@@ -330,6 +330,7 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
     <button data-tab="clients"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 7.5a3 3 0 0 1 0 5.6M17.5 14.5a5 5 0 0 1 3 4.5"/></svg><span class="ll">Clients</span><span class="ls">Clients</span></button>
     <button data-tab="fin"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg><span class="ll">Finances</span><span class="ls">Finances</span></button>
     <button data-tab="ana"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M7 16v-5M12 16V6M17 16v-8"/></svg><span class="ll">Analyse</span><span class="ls">Analyse</span></button>
+    <button data-tab="set"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg><span class="ll">Paramètres</span><span class="ls">Réglages</span></button>
   </nav>
   <button class="btn sm out" id="logout" hidden aria-label="Déconnexion"><svg class="lo" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10"/></svg><span class="lot">Déconnexion</span></button>
 </div></header>
@@ -351,12 +352,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=35"></script>
+<script src="firebase-config.js?v=36"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "35";
+const APP_VERSION = "36";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -533,9 +534,9 @@ function render(){
     act.forEach(a=>act.forEach(c=>{ if(a.id<c.id && overlaps(c, a.roomId, a.checkIn, a.checkOut)){ const k=a.id+c.id; if(!seen.has(k)){ seen.add(k);
       html += '<div class="banner" style="background:var(--bad-soft)"><span class="grow"><b>Double réservation</b> sur '+esc(room(a.roomId)?.name||"")+(c.roomId!==a.roomId?' / '+esc(room(c.roomId)?.name||""):'')+' : '+esc(client(a.clientId)?.name||"")+' ('+fmtD(a.checkIn)+' → '+fmtD(a.checkOut)+') et '+esc(client(c.clientId)?.name||"")+' ('+fmtD(c.checkIn)+' → '+fmtD(c.checkOut)+'). Modifiez ou annulez l\'une des deux.</span><button class="btn sm" data-act="edit-booking" data-id="'+c.id+'">Ouvrir la plus récente</button></div>'; } } })); }
   if(S.db && !allLoaded) html += '<div class="empty">Chargement des données…</div>';
-  else html += ({jour:vJour, cal:vCal, resa:vResa, clients:vClients, fin:vFin, ana:vAna}[S.tab]||vJour)();
+  else html += ({jour:vJour, cal:vCal, resa:vResa, clients:vClients, fin:vFin, ana:vAna, set:vSet}[S.tab]||vJour)();
   m.innerHTML = '<div class="panel">'+html+'</div>';
-  { const fab=$("#fab"), map={jour:["new-booking","Nouvelle réservation"],cal:["new-booking","Nouvelle réservation"],resa:["new-booking","Nouvelle réservation"],clients:["new-client","Nouveau client"],fin:["new-expense","Nouvelle dépense"],ana:["new-booking","Nouvelle réservation"]}[S.tab];
+  { const fab=$("#fab"), map={jour:["new-booking","Nouvelle réservation"],cal:["new-booking","Nouvelle réservation"],resa:["new-booking","Nouvelle réservation"],clients:["new-client","Nouveau client"],fin:["new-expense","Nouvelle dépense"],ana:["new-booking","Nouvelle réservation"],set:["new-room","Nouvelle chambre"]}[S.tab];
     if(fab){ fab.hidden = !(S.db && S.canWrite && map); if(map){ fab.dataset.act=map[0]; fab.setAttribute("aria-label",map[1]); fab.title=map[1]; } } }
 }
 
@@ -569,7 +570,7 @@ function vJour(){
      + '<div class="stat" style="--sc:var(--k-arr)"><span>Arrivées aujourd\'hui</span><b class="num">'+arr.length+'</b></div>'
      + '<div class="stat" style="--sc:var(--k-out)"><span>Départs aujourd\'hui</span><b class="num">'+dep.length+'</b></div>'
      + '<div class="stat" style="--sc:var(--k-due)"><span>À encaisser (séjours commencés)</span><b class="num">'+dt(dueSum)+'</b></div></div>';
-  h += sec("clean","clean","État des chambres"+(insideN?' · '+insideN+' occupée'+(insideN>1?'s':''):'')+(dirty?' · '+dirty+' à nettoyer':''),-1,(S.canWrite?'<button class="btn sm ghost edit" data-act="rooms-sheet">'+PEN_SVG+'Modifier les chambres</button>':''),
+  h += sec("clean","clean","État des chambres"+(insideN?' · '+insideN+' occupée'+(insideN>1?'s':''):'')+(dirty?' · '+dirty+' à nettoyer':''),-1,(S.canWrite?'<button class="btn sm ghost edit" data-act="goto-set">'+PEN_SVG+'Modifier les chambres</button>':''),
     units().length?units().map(r=>{
       const o = occupying(r.id,t), inside = guestInside(r), cur = inside || o, c = cur?client(cur.clientId):null;
       const leaving = dep.find(b=>b.roomId===r.id || isHouse(b.roomId));
@@ -693,6 +694,17 @@ function vClients(){
   return h;
 }
 
+function vSet(){
+  let h = '<div class="row spread"><h2>Paramètres</h2></div>';
+  const roomTiles = S.rooms.length ? S.rooms.map(r=>'<div class="tile click" data-act="edit-room" data-id="'+r.id+'"><span class="roomtag">'+esc(r.short||r.name)+'</span><div class="grow"><div class="t">'+esc(r.name)+'</div><div class="s">'+roomDesc(r)+'</div></div><div class="ctrl"><b class="num" style="font-size:.88rem">'+priceLabel(r)+'</b><span class="pen-r">'+PEN_SVG+'</span></div></div>').join("") : '<div class="empty">Aucune chambre.</div>';
+  h += sec("clean","clean","Chambres et tarifs",-1,(S.canWrite?'<button class="btn sm ghost" data-act="new-room">+ Chambre</button>':''), roomTiles);
+  h += '<section class="sec" style="--sc:var(--accent)"><div class="sh"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><h3>Maison et compte</h3></div><div class="setrow">'
+     + '<button class="setbtn" data-act="settings"><b>Maison et services en plus</b><span>Adresse, heures, Wi-Fi, consignes, services</span></button>'
+     + '<button class="setbtn" data-act="logout-btn"><b>Compte connecté</b><span>'+esc(((window.firebase&&firebase.apps&&firebase.apps.length&&firebase.auth().currentUser||{}).email||"").replace("@darsalma.local",""))+' · se déconnecter</span></button>'
+     + (S.canWrite?'<button class="setbtn danger" data-act="reset"><b>Remettre à zéro</b><span>Effacer réservations, clients, dépenses, photos</span></button>':'')
+     + '</div></section>';
+  return h;
+}
 function vFin(){
   const m = S.finMonth, [y,mo] = m.split("-").map(Number);
   const inM = d => d && d.slice(0,7)===m;
@@ -717,12 +729,6 @@ function vFin(){
      + '</div><div class="colstack">'
      + sec("arr","card","Paiements reçus",pays.length,(pays.length?'<b class="num" style="color:var(--k-arr)">'+dt(enc)+'</b>':''), payBody)
      + '</div></div>';
-  const roomTiles = S.rooms.length ? S.rooms.map(r=>'<div class="tile click" data-act="edit-room" data-id="'+r.id+'"><span class="roomtag">'+esc(r.short||r.name)+'</span><div class="grow"><div class="t">'+esc(r.name)+'</div><div class="s">'+roomDesc(r)+'</div></div><div class="ctrl"><b class="num" style="font-size:.88rem">'+priceLabel(r)+'</b><span class="pen-r">'+PEN_SVG+'</span></div></div>').join("") : '<div class="empty">Aucune chambre.</div>';
-  h += sec("clean","clean","Chambres et tarifs",-1,(S.canWrite?'<button class="btn sm ghost" data-act="new-room">+ Chambre</button>':''), roomTiles);
-  h += '<section class="sec" style="--sc:var(--accent)"><div class="sh"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><h3>Paramètres</h3></div><div class="setrow">'
-     + '<button class="setbtn" data-act="settings"><b>Maison et services en plus</b><span>Adresse, heures, Wi-Fi, consignes, services</span></button>'
-     + (S.canWrite?'<button class="setbtn danger" data-act="reset"><b>Remettre à zéro</b><span>Effacer réservations, clients, dépenses, photos</span></button>':'')
-     + '</div></section>';
   return h;
 }
 
@@ -1201,6 +1207,8 @@ document.addEventListener("click", async e=>{
   if(a==="new-room") return roomSheet(null);
   if(a==="edit-room"){ const r=room(id); if(r) roomSheet(r); return; }
   if(a==="rooms-sheet") return roomsSheet();
+  if(a==="goto-set"){ S.tab="set"; store.set("ds_tab","set"); render(); window.scrollTo(0,0); return; }
+  if(a==="logout-btn"){ $("#logout").click(); return; }
   if(a==="arrive"||a==="depart"){ const b=S.bookings.find(x=>x.id===id); if(!b) return; el.disabled=true; const now=new Date().toISOString();
     if(await markStay(id, a==="arrive"?"arrivedAt":"departedAt", now)){ const c=client(b.clientId), bal=balance(b);
       toast(a==="arrive" ? "Arrivée de "+(c?firstName(c.name):"client")+" enregistrée"+(bal>0?" · reste "+dt(bal)+" à encaisser":"") : "Départ de "+(c?firstName(c.name):"client")+" enregistré · chambre à nettoyer"+(bal>0?" · reste "+dt(bal):"")); } else el.disabled=false; return; }
