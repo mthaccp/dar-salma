@@ -244,7 +244,7 @@ function sub(col, sortFn){
   }, err=>{
     const denied = err && err.code==="permission-denied";
     $("#sync").textContent = denied ? "Accès refusé" : "Hors connexion";
-    if(denied) $("#main").innerHTML='<div class="banner"><span class="grow">Ce compte n\'a pas accès aux données de Dar Salma. Vérifiez que son adresse e-mail figure dans les règles Firestore.</span></div>';
+    if(denied){ const em=(firebase.auth().currentUser||{}).email||""; $("#main").innerHTML='<div class="banner"><span class="grow">Le compte <b>'+esc(em)+'</b> n\'a pas accès aux données de Dar Salma. Il doit figurer dans les règles Firestore. Déconnectez-vous et reconnectez-vous avec le bon nom d\'utilisateur.</span></div>'; }
   }));
 }
 async function seedRooms(){
