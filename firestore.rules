@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Seules ces adresses e-mail peuvent lire et modifier les données de Dar Salma.
+    function autorise() {
+      return request.auth != null && request.auth.token.email in [
+        'TON_EMAIL@gmail.com',
+        'EMAIL_DE_TA_MERE@gmail.com'
+      ];
+    }
+    match /{document=**} {
+      allow read, write: if autorise();
+    }
+  }
+}

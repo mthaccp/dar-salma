@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Dar Salma</title>
+<meta name="theme-color" content="#1e2f62">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Dar Salma">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Cormorant+Garamond:wght@600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: app shell — header + tab bar (bottom on phone, top on desktop), one panel per tab, sheet for forms */
+:root{
+  --bg:#f6f5f1; --surface:#ffffff; --sunk:#ecebe5; --line:#dcdad2;
+  --fg:#1b2240; --muted:#5f6680; --accent:#1e2f62; --accent-soft:#e3e7f2; --on-accent:#ffffff;
+  --jasmin:#a8823d; --jasmin-soft:#f4ecdc;
+  --navy:#1e2f62; --gold:#c9a55f; --on-navy:#f3efe6;
+  --ok:#2f7a4f; --ok-soft:#dcefe3; --warn:#a8641a; --warn-soft:#f7e6d1; --bad:#b03a3a; --bad-soft:#f6dddd;
+  --display:"Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --brand:"Cinzel", "Trajan Pro", Georgia, serif;
+  --body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111529; --surface:#192037; --sunk:#222a44; --line:#2e3857;
+  --fg:#e9ebf2; --muted:#9ba2b8; --accent:#a3b6ea; --accent-soft:#25325a; --on-accent:#111a33;
+  --jasmin:#d8b46c; --jasmin-soft:#3a3020; --navy:#17244d;
+  --ok:#6cc495; --ok-soft:#1d3329; --warn:#e3a35c; --warn-soft:#3a2b1b; --bad:#ec8383; --bad-soft:#3d2224;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111529; --surface:#192037; --sunk:#222a44; --line:#2e3857;
+  --fg:#e9ebf2; --muted:#9ba2b8; --accent:#a3b6ea; --accent-soft:#25325a; --on-accent:#111a33;
+  --jasmin:#d8b46c; --jasmin-soft:#3a3020; --navy:#17244d;
+  --ok:#6cc495; --ok-soft:#1d3329; --warn:#e3a35c; --warn-soft:#3a2b1b; --bad:#ec8383; --bad-soft:#3d2224;
+  color-scheme:dark}
+*{box-sizing:border-box}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+img{max-width:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1100px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--navy);border-bottom:2px solid var(--gold)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--navy)}
+.top-in{display:flex;align-items:center;gap:12px;padding-block:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;margin-right:auto}
+.brand img{width:46px;height:46px;border-radius:10px;display:block}
+.brand .bt{display:grid;line-height:1.1}
+.brand h1{font-family:var(--brand);font-weight:600;font-size:1.25rem;margin:0;letter-spacing:.08em;color:var(--on-navy)}
+.brand .arch{width:22px;height:26px;border:2.5px solid var(--accent);border-bottom:none;border-radius:11px 11px 0 0;align-self:center}
+.brand small{color:var(--gold);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase}
+nav.tabs{display:flex;gap:4px}
+nav.tabs button{background:none;border:none;padding:8px 12px;border-radius:999px;color:rgba(243,239,230,.72);font-weight:600;cursor:pointer}
+nav.tabs button[aria-current="page"]{background:rgba(201,165,95,.2);color:var(--gold)}
+nav.tabs button:focus-visible,.btn:focus-visible,.cell:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{padding-block:20px 110px}
+.panel{display:grid;gap:20px}
+h2{font-family:var(--display);font-weight:700;font-size:1.6rem;margin:0;text-wrap:balance}
+h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px;font-weight:700}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spread{justify-content:space-between}
+.btn{border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:999px;font-weight:600;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.ghost{background:none;border-color:transparent;color:var(--accent)}
+.btn.danger{color:var(--bad);border-color:var(--bad-soft)}
+.btn.danger.armed{background:var(--bad);color:var(--surface);border-color:var(--bad)}
+.btn.sm{padding:5px 10px;font-size:.85rem}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:grid;gap:2px}
+.stat b{font-family:var(--display);font-weight:700;font-size:1.85rem;line-height:1.1}
+.stat span{color:var(--muted);font-size:.85rem}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:760px){.cols{grid-template-columns:1fr}}
+.list{display:grid;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.item{display:flex;gap:12px;align-items:center;padding:11px 14px;border-top:1px solid var(--line);min-width:0}
+.item:first-child{border-top:none}
+.item .grow{flex:1;min-width:0}
+.item .t{font-weight:600;overflow-wrap:anywhere}
+.item .s{color:var(--muted);font-size:.85rem;overflow-wrap:anywhere}
+.item.click{cursor:pointer}
+.item.click:hover{background:var(--sunk)}
+.empty{padding:18px 14px;color:var(--muted);font-size:.9rem}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:.78rem;font-weight:700;white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.info{background:var(--accent-soft);color:var(--accent)}
+.pill.ex{background:var(--jasmin-soft);color:var(--jasmin)}
+.roomtag{display:inline-grid;place-items:center;min-width:34px;height:34px;padding:0 6px;border-radius:8px;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:.85rem}
+/* calendar */
+.cal{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.cal table{border-collapse:collapse;min-width:720px;width:100%}
+.cal th,.cal td{border-left:1px solid var(--line);border-top:1px solid var(--line);padding:0;text-align:center;font-size:.78rem}
+.cal thead th{border-top:none;padding:6px 2px;color:var(--muted);font-weight:600}
+.cal thead th.today{color:var(--accent)}
+.cal thead th .d{display:block;font-size:1rem;color:var(--fg);font-weight:700}
+.cal thead th.today .d{color:var(--accent)}
+.cal thead th.we{background:var(--sunk)}
+.cal th.room{border-left:none;text-align:left;padding:8px 10px;white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1;font-size:.85rem;color:var(--fg)}
+.cell{width:100%;height:42px;border:none;background:none;cursor:pointer;padding:0}
+.cell:hover{background:var(--sunk)}
+.bk{display:block;height:30px;margin:0 -1px;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:.72rem;line-height:30px;overflow:hidden;white-space:nowrap;text-align:left;padding-left:6px;cursor:pointer;border:none;width:calc(100% + 2px)}
+.bk.unpaid{background:var(--jasmin);color:var(--surface)}
+.bk.start{border-radius:6px 0 0 6px;margin-left:3px;width:calc(100% - 2px)}
+.bk.end{border-radius:0 6px 6px 0;margin-right:3px}
+.bk.start.end{border-radius:6px;width:calc(100% - 6px)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:.85rem}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+/* forms / sheet */
+.sheet-bg{position:fixed;inset:0;background:rgba(10,14,22,.45);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:18px max(18px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px))}
+@media (min-width:700px){.sheet-bg{align-items:center}.sheet{border-radius:16px}}
+form.f{display:grid;gap:12px}
+.f label{display:grid;gap:4px;font-size:.85rem;font-weight:600;color:var(--muted)}
+.f input,.f select,.f textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-weight:400;color:var(--fg);width:100%;min-width:0}
+.f input:focus,.f select:focus,.f textarea:focus{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.note{font-size:.85rem;padding:9px 12px;border-radius:8px}
+.note.warn{background:var(--warn-soft);color:var(--warn)}
+.note.info{background:var(--accent-soft);color:var(--accent)}
+.note.bad{background:var(--bad-soft);color:var(--bad)}
+.summary{background:var(--sunk);border-radius:8px;padding:10px 12px;display:grid;gap:4px;font-size:.9rem}
+.summary div{display:flex;justify-content:space-between;gap:10px}
+.summary .big{font-weight:700;font-size:1rem}
+.pay{display:flex;justify-content:space-between;gap:8px;font-size:.88rem;padding:6px 0;border-top:1px dashed var(--line)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(88px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:999px;font-weight:600;z-index:60;font-size:.9rem}
+.banner{background:var(--jasmin-soft);color:var(--fg);border-radius:var(--r);padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:.9rem}
+.banner .grow{flex:1;min-width:200px}
+.search{flex:1;min-width:180px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:8px 14px}
+.seg{display:inline-flex;background:var(--sunk);border-radius:999px;padding:3px}
+.seg button{border:none;background:none;padding:5px 12px;border-radius:999px;font-weight:600;color:var(--muted);cursor:pointer;font-size:.85rem}
+.seg button.on{background:var(--surface);color:var(--fg)}
+@media (max-width:760px){
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--surface);border-top:1px solid var(--line);justify-content:space-around;padding:6px max(6px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px))}
+  nav.tabs button{padding:8px 6px;font-size:.78rem;flex:1;color:var(--muted)}
+  nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--accent)}
+  .g2{grid-template-columns:1fr 1fr}
+}
+.out{background:transparent;color:var(--on-navy);border-color:rgba(243,239,230,.35)}
+.login{position:fixed;inset:0;z-index:70;background:var(--navy);display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));overflow:auto}
+.login-card{background:var(--surface);border-radius:18px;padding:28px 24px;width:min(380px,100%);display:grid;gap:14px;border-top:3px solid var(--gold)}
+.login-card .lg{width:120px;height:120px;border-radius:14px;margin:0 auto;display:block}
+.login-card h1{font-family:var(--brand);font-weight:600;letter-spacing:.08em;text-align:center;margin:0;font-size:1.4rem}
+.login-card p{text-align:center;margin:-8px 0 4px;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(16px);opacity:.6}}}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap top-in">
+  <div class="brand"><img src="logo.webp" alt="Logo Dar Salma"><div class="bt"><h1>Dar Salma</h1><small id="sync">Connexion…</small></div></div>
+  <nav class="tabs" id="tabs">
+    <button data-tab="jour" aria-current="page">Aujourd'hui</button>
+    <button data-tab="cal">Calendrier</button>
+    <button data-tab="resa">Réservations</button>
+    <button data-tab="clients">Clients</button>
+    <button data-tab="fin">Finances</button>
+  </nav>
+  <button class="btn sm out" id="logout" hidden>Déconnexion</button>
+</div></header>
+<main class="wrap" id="main"></main>
+<div id="sheetRoot"></div>
+<div id="toastRoot"></div>
+<div id="login" class="login" hidden><div class="login-card">
+  <img class="lg" src="logo.webp" alt="Logo Dar Salma">
+  <h1>Dar Salma</h1><p>Espace de gestion</p>
+  <form class="f" id="lf">
+    <label>E-mail<input id="l_email" type="email" autocomplete="username" required></label>
+    <label>Mot de passe<input id="l_pass" type="password" autocomplete="current-password" required></label>
+    <div id="l_err"></div>
+    <button class="btn primary" type="submit" id="l_go">Se connecter</button>
+    <button class="btn ghost" type="button" id="l_reset">Mot de passe oublié ?</button>
+  </form>
+</div></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+
+<script>
+(function(){
+"use strict";
+// ---------- helpers ----------
+const $ = (s, el=document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad = n => String(n).padStart(2,"0");
+const toISO = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const today = () => toISO(new Date());
+const parse = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
+const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate()+n); return toISO(d); };
+const nights = (a, b) => Math.max(0, Math.round((parse(b) - parse(a)) / 86400000));
+const MOIS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+const JOURS = ["dim","lun","mar","mer","jeu","ven","sam"];
+const fmtD = s => { const d = parse(s); return d.getDate()+" "+MOIS[d.getMonth()].slice(0,4).replace(/\.$/,"")+(d.getFullYear()!==new Date().getFullYear()?" "+d.getFullYear():""); };
+const fmtLong = s => { const d = parse(s); return ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"][d.getDay()]+" "+d.getDate()+" "+MOIS[d.getMonth()]; };
+const dt = n => (Math.round((Number(n)||0)*1000)/1000).toLocaleString("fr-FR",{maximumFractionDigits:3})+" DT";
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const paid = b => (b.payments||[]).reduce((s,p)=>s+(Number(p.amount)||0),0);
+const balance = b => Math.max(0,(Number(b.total)||0) - paid(b));
+const store = { get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}}, set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}} };
+
+// ---------- state ----------
+const S = { rooms:[], clients:[], bookings:[], expenses:[], loaded:{}, tab: store.get("ds_tab","jour"),
+  calStart: addDays(today(), -1), resaFilter:"avenir", clientQ:"", finMonth: today().slice(0,7), canWrite:true, db:null };
+let sheetOpen = null;
+
+function toast(msg){ const r=$("#toastRoot"); r.innerHTML='<div class="toast" role="status">'+esc(msg)+'</div>'; clearTimeout(toast.t); toast.t=setTimeout(()=>r.innerHTML="",2200); }
+const room = id => S.rooms.find(r=>r.id===id);
+const client = id => S.clients.find(c=>c.id===id);
+const roomDesc = r => [r.beds==="separes"?"2 lits séparés":r.beds==="double"?"Lit double":"", (r.capacity||2)+" pers.", r.babyBed?"lit bébé possible":"", r.note||""].filter(Boolean).map(esc).join(" · ");
+const activeBookings = () => S.bookings.filter(b=>b.status!=="annulee");
+const occupying = (roomId, day) => activeBookings().find(b=>b.roomId===roomId && b.checkIn<=day && day<b.checkOut);
+const hasExamples = () => [...S.rooms,...S.clients,...S.bookings,...S.expenses].some(x=>x.example);
+
+// ---------- db ----------
+async function save(col, id, data){
+  if(!S.db){ toast("Enregistrement impossible : base non connectée"); return false; }
+  try{ await S.db.collection(col).doc(id).set(data); return true; }
+  catch(e){
+    if(e && e.code==="permission-denied"){ toast("Ce compte n'a pas le droit de modifier"); }
+    else if(e && e.code==="quota_exceeded"){ toast("Espace plein : supprimez d'anciennes données"); }
+    else toast("Erreur d'enregistrement, réessayez");
+    return false;
+  }
+}
+async function remove(col, id){ if(!S.db) return false; try{ await S.db.collection(col).doc(id).delete(); return true; }catch(e){ toast("Suppression impossible"); return false; } }
+const strip = o => { const c={...o}; delete c.id; return c; };
+
+let unsubs = [];
+function sub(col, sortFn){
+  unsubs.push(S.db.collection(col).onSnapshot(snap=>{
+    S[col] = snap.docs.map(d=>({id:d.id, ...d.data()})).sort(sortFn||(()=>0));
+    S.loaded[col]=true; $("#sync").textContent = snap.metadata.fromCache ? "Hors ligne" : "Synchronisé";
+    if(col==="rooms" && snap.empty && !snap.metadata.fromCache && !S.seeded) seedRooms();
+    render();
+  }, err=>{
+    const denied = err && err.code==="permission-denied";
+    $("#sync").textContent = denied ? "Accès refusé" : "Hors connexion";
+    if(denied) $("#main").innerHTML='<div class="banner"><span class="grow">Ce compte n\'a pas accès aux données de Dar Salma. Vérifiez que son adresse e-mail figure dans les règles Firestore.</span></div>';
+  }));
+}
+async function seedRooms(){
+  S.seeded = true;
+  const rooms = [1,2,3,4,5,6].map(n=>({id:"r"+n, name:"Chambre "+n, short:String(n), price:150, capacity:2, beds:"double", babyBed:true, status:"propre", note:"", order:n}));
+  rooms.push({id:"r7", name:"Studio indépendant", short:"S", price:220, capacity:3, beds:"double", babyBed:true, status:"propre", note:"", order:7});
+  for(const r of rooms) await save("rooms", r.id, strip(r));
+}
+function stopSubs(){ unsubs.forEach(u=>{try{u()}catch(e){}}); unsubs=[]; }
+
+async function boot(){
+  render();
+  const cfg = window.FIREBASE_CONFIG;
+  if(!window.firebase || !cfg || !cfg.apiKey || String(cfg.apiKey).indexOf("A_REMPLIR")===0){
+    $("#sync").textContent="À configurer";
+    $("#main").innerHTML='<div class="banner"><span class="grow">L\'application n\'est pas encore reliée à sa base de données. Remplissez le fichier firebase-config.js (voir le guide d\'installation).</span></div>';
+    return;
+  }
+  firebase.initializeApp(cfg);
+  const db = firebase.firestore();
+  try{ await db.enablePersistence({synchronizeTabs:true}); }catch(e){}
+  const auth = firebase.auth();
+  const lerr = m => { $("#l_err").innerHTML = m ? '<div class="note bad">'+m+'</div>' : ''; };
+  $("#lf").addEventListener("submit", async e=>{
+    e.preventDefault(); lerr(""); $("#l_go").disabled=true;
+    try{ await auth.signInWithEmailAndPassword($("#l_email").value.trim(), $("#l_pass").value); }
+    catch(x){
+      const c = x && x.code;
+      lerr(["auth/invalid-credential","auth/wrong-password","auth/user-not-found","auth/invalid-login-credentials","auth/invalid-email"].includes(c) ? "E-mail ou mot de passe incorrect."
+        : c==="auth/too-many-requests" ? "Trop d'essais. Réessayez dans quelques minutes."
+        : c==="auth/network-request-failed" ? "Pas de connexion internet."
+        : "Connexion impossible. Vérifiez vos informations.");
+    }
+    $("#l_go").disabled=false;
+  });
+  $("#l_reset").addEventListener("click", async ()=>{
+    const em=$("#l_email").value.trim(); if(!em){ lerr("Saisissez d'abord votre e-mail."); $("#l_email").focus(); return; }
+    try{ await auth.sendPasswordResetEmail(em); $("#l_err").innerHTML='<div class="note info">Un e-mail de réinitialisation a été envoyé à '+esc(em)+'.</div>'; }
+    catch(x){ lerr("Envoi impossible. Vérifiez l'adresse e-mail."); }
+  });
+  $("#logout").addEventListener("click", ()=>auth.signOut());
+  auth.onAuthStateChanged(u=>{
+    if(u){
+      $("#login").hidden=true; $("#logout").hidden=false;
+      if(!S.db){ S.db=db; $("#sync").textContent="Connexion…";
+        sub("rooms",(a,b)=>(a.order??0)-(b.order??0));
+        sub("clients",(a,b)=>String(a.name).localeCompare(String(b.name),"fr"));
+        sub("bookings",(a,b)=>String(a.checkIn).localeCompare(String(b.checkIn)));
+        sub("expenses",(a,b)=>String(b.date).localeCompare(String(a.date)));
+      }
+    } else {
+      stopSubs(); S.db=null; S.rooms=[]; S.clients=[]; S.bookings=[]; S.expenses=[]; S.loaded={};
+      closeSheet(); $("#logout").hidden=true; $("#login").hidden=false; $("#sync").textContent="Non connecté"; render();
+    }
+  });
+}
+
+// ---------- render ----------
+function render(){
+  document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-current", b.dataset.tab===S.tab?"page":"false"));
+  const m = $("#main");
+  const allLoaded = ["rooms","clients","bookings","expenses"].every(k=>S.loaded[k]);
+  let html = "";
+  if(!S.canWrite) html += '<div class="banner"><span class="grow">Vous consultez en lecture seule. Demandez au propriétaire de vous donner le niveau « Contributeur » pour modifier.</span></div>';
+  if(hasExamples() && S.canWrite) html += '<div class="banner"><span class="pill ex">Exemples</span><span class="grow">Les réservations, clients et dépenses marqués « exemple » servent à montrer l\'application. Les chambres sont modifiables dans Finances › Chambres.</span><button class="btn sm" data-act="clear-ex">Supprimer les exemples</button></div>';
+  if(S.db && !allLoaded) html += '<div class="empty">Chargement des données…</div>';
+  else html += ({jour:vJour, cal:vCal, resa:vResa, clients:vClients, fin:vFin}[S.tab]||vJour)();
+  m.innerHTML = '<div class="panel">'+html+'</div>';
+}
+
+function bookingItem(b, extra){
+  const c = client(b.clientId), r = room(b.roomId), bal = balance(b);
+  const st = b.status==="annulee" ? '<span class="pill bad">Annulée</span>' : bal>0 ? '<span class="pill warn num">Reste '+dt(bal)+'</span>' : '<span class="pill ok">Payé</span>';
+  return '<div class="item click" data-act="edit-booking" data-id="'+b.id+'"><span class="roomtag">'+esc(r?r.short||r.name:"?")+'</span><div class="grow"><div class="t">'+esc(c?c.name:"Client inconnu")+(b.example?' <span class="pill ex">exemple</span>':'')+'</div><div class="s num">'+fmtD(b.checkIn)+' → '+fmtD(b.checkOut)+' · '+nights(b.checkIn,b.checkOut)+' nuit(s) · '+(b.guests||1)+' pers.'+(b.babyBed?' + lit bébé':'')+(extra?' · '+extra:'')+'</div></div>'+st+'</div>';
+}
+
+function vJour(){
+  const t = today();
+  const arr = activeBookings().filter(b=>b.checkIn===t);
+  const dep = activeBookings().filter(b=>b.checkOut===t);
+  const occ = S.rooms.filter(r=>occupying(r.id,t)).length;
+  const due = activeBookings().filter(b=>balance(b)>0 && b.checkIn<=t);
+  const dueSum = due.reduce((s,b)=>s+balance(b),0);
+  const tom = addDays(t,1);
+  const arrTom = activeBookings().filter(b=>b.checkIn===tom);
+  let h = '<div class="row spread"><h2>'+fmtLong(t).replace(/^./,c=>c.toUpperCase())+'</h2><button class="btn primary" data-act="new-booking"'+(S.canWrite?'':' disabled')+'>+ Réservation</button></div>';
+  h += '<div class="stats"><div class="stat"><span>Chambres occupées ce soir</span><b class="num">'+occ+' / '+S.rooms.length+'</b></div>'
+     + '<div class="stat"><span>Arrivées aujourd\'hui</span><b class="num">'+arr.length+'</b></div>'
+     + '<div class="stat"><span>Départs aujourd\'hui</span><b class="num">'+dep.length+'</b></div>'
+     + '<div class="stat"><span>À encaisser (séjours commencés)</span><b class="num">'+dt(dueSum)+'</b></div></div>';
+  h += '<div class="cols"><div><h3>Arrivées</h3><div class="list">'+(arr.length?arr.map(b=>bookingItem(b)).join(""):'<div class="empty">Aucune arrivée aujourd\'hui.</div>')+'</div>';
+  if(arrTom.length) h += '<h3 style="margin-top:16px">Demain</h3><div class="list">'+arrTom.map(b=>bookingItem(b)).join("")+'</div>';
+  h += '<h3 style="margin-top:16px">Départs</h3><div class="list">'+(dep.length?dep.map(b=>bookingItem(b)).join(""):'<div class="empty">Aucun départ aujourd\'hui.</div>')+'</div></div>';
+  h += '<div><h3>Ménage et état des chambres</h3><div class="list">'+(S.rooms.length?S.rooms.map(r=>{
+      const o = occupying(r.id,t); const c = o?client(o.clientId):null;
+      const leaving = dep.find(b=>b.roomId===r.id);
+      const st = r.status||"propre";
+      const pill = st==="propre"?'<span class="pill ok">Propre</span>':st==="a_nettoyer"?'<span class="pill warn">À nettoyer</span>':'<span class="pill bad">Réparation</span>';
+      return '<div class="item"><span class="roomtag">'+esc(r.short||r.name)+'</span><div class="grow"><div class="t">'+esc(r.name)+'</div><div class="s">'+(o?'Occupée · '+esc(c?c.name:"")+' jusqu\'au '+fmtD(o.checkOut)+(o.babyBed?' · lit bébé':''):leaving?'Libérée ce matin':'Libre ce soir')+(r.beds==="separes"?' · lits séparés':'')+'</div></div>'+pill+(S.canWrite?'<button class="btn sm" data-act="cycle-status" data-id="'+r.id+'" aria-label="Changer l\'état">Changer</button>':'')+'</div>';
+    }).join(""):'<div class="empty">Aucune chambre. Ajoutez-les dans Finances › Chambres.</div>')+'</div>';
+  h += '<h3 style="margin-top:16px">Soldes à encaisser</h3><div class="list">'+(due.length?due.map(b=>bookingItem(b)).join(""):'<div class="empty">Tout est encaissé.</div>')+'</div></div></div>';
+  return h;
+}
+
+function vCal(){
+  const days = 14, start = S.calStart, t = today();
+  const ds = Array.from({length:days},(_,i)=>addDays(start,i));
+  const sd = parse(start), ed = parse(ds[days-1]);
+  let h = '<div class="row spread"><h2>'+MOIS[sd.getMonth()].replace(/^./,c=>c.toUpperCase())+(sd.getMonth()!==ed.getMonth()?' – '+MOIS[ed.getMonth()]:'')+' '+ed.getFullYear()+'</h2><div class="row"><button class="btn sm" data-act="cal-prev" aria-label="Semaine précédente">←</button><button class="btn sm" data-act="cal-today">Aujourd\'hui</button><button class="btn sm" data-act="cal-next" aria-label="Semaine suivante">→</button></div></div>';
+  h += '<div class="cal"><table><thead><tr><th class="room">Chambre</th>'+ds.map(d=>{const x=parse(d),we=x.getDay()===0||x.getDay()===6;return '<th class="'+(d===t?'today ':'')+(we?'we':'')+'">'+JOURS[x.getDay()]+'<span class="d">'+x.getDate()+'</span></th>';}).join("")+'</tr></thead><tbody>';
+  S.rooms.forEach(r=>{
+    h += '<tr><th class="room">'+esc(r.name)+'</th>';
+    ds.forEach(d=>{
+      const b = occupying(r.id,d);
+      if(b){
+        const isStart = b.checkIn===d || d===start, isEnd = addDays(d,1)===b.checkOut;
+        const c = client(b.clientId);
+        const label = (b.checkIn===d||d===start)?esc(c?c.name.split(" ")[0]:"?"):"";
+        h += '<td><button class="bk '+(balance(b)>0?'unpaid ':'')+(isStart?'start ':'')+(isEnd?'end':'')+'" data-act="edit-booking" data-id="'+b.id+'" title="'+esc(c?c.name:"")+'">'+label+'</button></td>';
+      } else h += '<td><button class="cell" data-act="new-booking" data-room="'+r.id+'" data-day="'+d+'" aria-label="Réserver '+esc(r.name)+' le '+fmtD(d)+'"'+(S.canWrite?'':' disabled')+'></button></td>';
+    });
+    h += '</tr>';
+  });
+  h += '</tbody></table></div>';
+  h += '<div class="legend"><span><i style="background:var(--accent)"></i>Payé</span><span><i style="background:var(--jasmin)"></i>Solde à encaisser</span><span>Touchez une case vide pour réserver.</span></div>';
+  if(!S.rooms.length) h += '<div class="empty">Ajoutez vos chambres dans Finances › Chambres pour voir le calendrier.</div>';
+  return h;
+}
+
+function vResa(){
+  const t = today(), f = S.resaFilter;
+  let list = S.bookings.slice();
+  if(f==="avenir") list = list.filter(b=>b.status!=="annulee" && b.checkOut>=t);
+  else if(f==="passees") list = list.filter(b=>b.status!=="annulee" && b.checkOut<t).reverse();
+  else if(f==="impayees") list = list.filter(b=>b.status!=="annulee" && balance(b)>0);
+  else if(f==="annulees") list = list.filter(b=>b.status==="annulee");
+  const seg = [["avenir","En cours et à venir"],["impayees","Impayées"],["passees","Passées"],["annulees","Annulées"]];
+  let h = '<div class="row spread"><h2>Réservations</h2><button class="btn primary" data-act="new-booking"'+(S.canWrite?'':' disabled')+'>+ Réservation</button></div>';
+  h += '<div class="seg" role="tablist">'+seg.map(([k,l])=>'<button class="'+(k===f?'on':'')+'" data-act="resa-filter" data-f="'+k+'">'+l+'</button>').join("")+'</div>';
+  h += '<div class="list">'+(list.length?list.map(b=>bookingItem(b, b.source?esc(b.source):"")).join(""):'<div class="empty">Aucune réservation dans cette liste. Touchez « + Réservation » pour en ajouter une.</div>')+'</div>';
+  return h;
+}
+
+function vClients(){
+  const q = S.clientQ.trim().toLowerCase();
+  const list = S.clients.filter(c=>!q || [c.name,c.phone,c.nationality,c.idDoc].join(" ").toLowerCase().includes(q));
+  let h = '<div class="row spread"><h2>Clients</h2><button class="btn primary" data-act="new-client"'+(S.canWrite?'':' disabled')+'>+ Client</button></div>';
+  h += '<div class="row"><input class="search" id="clientQ" type="search" placeholder="Rechercher un nom, un téléphone…" value="'+esc(S.clientQ)+'"></div>';
+  h += '<div class="list">'+(list.length?list.map(c=>{
+    const st = S.bookings.filter(b=>b.clientId===c.id && b.status!=="annulee");
+    const n = st.reduce((s,b)=>s+nights(b.checkIn,b.checkOut),0);
+    return '<div class="item click" data-act="edit-client" data-id="'+c.id+'"><div class="grow"><div class="t">'+esc(c.name)+(c.example?' <span class="pill ex">exemple</span>':'')+'</div><div class="s">'+[c.phone,c.nationality].filter(Boolean).map(esc).join(" · ")+'</div></div><span class="pill info num">'+st.length+' séjour'+(st.length>1?'s':'')+' · '+n+' n.</span></div>';
+  }).join(""):'<div class="empty">'+(q?'Aucun client ne correspond.':'Aucun client. Ils s\'ajoutent aussi depuis une réservation.')+'</div>')+'</div>';
+  return h;
+}
+
+function vFin(){
+  const m = S.finMonth, [y,mo] = m.split("-").map(Number);
+  const inM = d => d && d.slice(0,7)===m;
+  const pays = [];
+  S.bookings.forEach(b=>(b.payments||[]).forEach(p=>{ if(inM(p.date)) pays.push({...p, b}); }));
+  pays.sort((a,b)=>b.date.localeCompare(a.date));
+  const enc = pays.reduce((s,p)=>s+(Number(p.amount)||0),0);
+  const exps = S.expenses.filter(e=>inM(e.date));
+  const dep = exps.reduce((s,e)=>s+(Number(e.amount)||0),0);
+  const first = m+"-01", last = addDays(toISO(new Date(y,mo,1)),-1), dim = Number(last.slice(8));
+  let occN = 0; for(let i=0;i<dim;i++){ const d=addDays(first,i); occN += S.rooms.filter(r=>occupying(r.id,d)).length; }
+  const rate = S.rooms.length ? Math.round(occN/(S.rooms.length*dim)*100) : 0;
+  const byCat = {}; exps.forEach(e=>byCat[e.category||"Autre"]=(byCat[e.category||"Autre"]||0)+(Number(e.amount)||0));
+  const prev = toISO(new Date(y,mo-2,1)).slice(0,7), next = toISO(new Date(y,mo,1)).slice(0,7);
+  let h = '<div class="row spread"><h2>'+MOIS[mo-1].replace(/^./,c=>c.toUpperCase())+' '+y+'</h2><div class="row"><button class="btn sm" data-act="fin-month" data-m="'+prev+'" aria-label="Mois précédent">←</button><button class="btn sm" data-act="fin-month" data-m="'+today().slice(0,7)+'">Ce mois</button><button class="btn sm" data-act="fin-month" data-m="'+next+'" aria-label="Mois suivant">→</button></div></div>';
+  h += '<div class="stats"><div class="stat"><span>Encaissé</span><b class="num">'+dt(enc)+'</b></div><div class="stat"><span>Dépenses</span><b class="num">'+dt(dep)+'</b></div><div class="stat"><span>Résultat</span><b class="num" style="color:'+(enc-dep>=0?'var(--ok)':'var(--bad)')+'">'+dt(enc-dep)+'</b></div><div class="stat"><span>Taux d\'occupation</span><b class="num">'+rate+' %</b></div></div>';
+  h += '<div class="cols"><div><div class="row spread" style="margin-bottom:8px"><h3 style="margin:0">Dépenses</h3><button class="btn sm primary" data-act="new-expense"'+(S.canWrite?'':' disabled')+'>+ Dépense</button></div>';
+  if(Object.keys(byCat).length) h += '<div class="row" style="margin-bottom:8px">'+Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<span class="pill info num">'+esc(k)+' · '+dt(v)+'</span>').join("")+'</div>';
+  h += '<div class="list">'+(exps.length?exps.map(e=>'<div class="item click" data-act="edit-expense" data-id="'+e.id+'"><div class="grow"><div class="t">'+esc(e.label||e.category)+(e.example?' <span class="pill ex">exemple</span>':'')+'</div><div class="s num">'+fmtD(e.date)+' · '+esc(e.category||"")+'</div></div><b class="num">'+dt(e.amount)+'</b></div>').join(""):'<div class="empty">Aucune dépense ce mois-ci.</div>')+'</div></div>';
+  h += '<div><h3>Paiements reçus</h3><div class="list">'+(pays.length?pays.map(p=>{const c=client(p.b.clientId);return '<div class="item click" data-act="edit-booking" data-id="'+p.b.id+'"><div class="grow"><div class="t">'+esc(c?c.name:"")+'</div><div class="s num">'+fmtD(p.date)+' · '+esc(p.method||"")+'</div></div><b class="num">'+dt(p.amount)+'</b></div>';}).join(""):'<div class="empty">Aucun paiement enregistré ce mois-ci.</div>')+'</div>';
+  h += '<div class="row spread" style="margin:16px 0 8px"><h3 style="margin:0">Chambres</h3><button class="btn sm" data-act="new-room"'+(S.canWrite?'':' disabled')+'>+ Chambre</button></div><div class="list">'+(S.rooms.length?S.rooms.map(r=>'<div class="item click" data-act="edit-room" data-id="'+r.id+'"><span class="roomtag">'+esc(r.short||r.name)+'</span><div class="grow"><div class="t">'+esc(r.name)+'</div><div class="s">'+roomDesc(r)+(false?' · '+esc(r.note):'')+'</div></div><span class="num">'+dt(r.price)+' / nuit</span></div>').join(""):'<div class="empty">Aucune chambre.</div>')+'</div></div></div>';
+  return h;
+}
+
+// ---------- sheets (forms) ----------
+function openSheet(html, onMount){
+  sheetOpen = true;
+  $("#sheetRoot").innerHTML = '<div class="sheet-bg" data-act="close-bg"><div class="sheet" role="dialog" aria-modal="true">'+html+'</div></div>';
+  onMount && onMount($("#sheetRoot .sheet"));
+  const first = $("#sheetRoot input, #sheetRoot select"); first && first.focus();
+}
+function closeSheet(){ sheetOpen=null; $("#sheetRoot").innerHTML=""; }
+const opt = (v,l,sel) => '<option value="'+esc(v)+'"'+(String(v)===String(sel)?' selected':'')+'>'+esc(l)+'</option>';
+const dis = () => S.canWrite ? '' : ' disabled';
+
+function bookingSheet(b){
+  const isNew = !b;
+  b = b ? JSON.parse(JSON.stringify(b)) : { id: uid(), roomId: S.rooms[0]?.id||"", clientId:"", checkIn: today(), checkOut: addDays(today(),1), guests:2, pricePerNight: S.rooms[0]?.price||0, total:0, payments:[], status:"confirmee", source:"Direct", notes:"" };
+  const html = '<form class="f" id="bf"><div class="row spread"><h2>'+(isNew?'Nouvelle réservation':'Réservation')+'</h2><button type="button" class="btn ghost" data-act="close">Fermer</button></div>'
+   + '<label>Client<select id="b_client"><option value="">— Choisir —</option>'+opt("__new","+ Nouveau client",b.clientId?"":"__new")+S.clients.map(c=>opt(c.id,c.name+(c.phone?" · "+c.phone:""),b.clientId)).join("")+'</select></label>'
+   + '<div id="newClient" class="g2"><label>Nom complet<input id="nc_name" autocomplete="off"></label><label>Téléphone<input id="nc_phone" type="tel"></label></div>'
+   + '<div class="g2"><label>Chambre<select id="b_room">'+S.rooms.map(r=>opt(r.id,r.name,b.roomId)).join("")+'</select></label><label>Personnes<input id="b_guests" type="number" min="1" value="'+(b.guests||1)+'"></label></div>'
+   + '<label style="display:flex;align-items:center;gap:8px;color:var(--fg)"><input id="b_baby" type="checkbox" style="width:auto"'+(b.babyBed?' checked':'')+'> Ajouter un lit bébé</label>'
+   + '<div class="g2"><label>Arrivée<input id="b_in" type="date" value="'+b.checkIn+'"></label><label>Départ<input id="b_out" type="date" value="'+b.checkOut+'"></label></div>'
+   + '<div class="g2"><label>Prix par nuit (DT)<input id="b_price" type="number" min="0" step="0.5" value="'+(b.pricePerNight||0)+'"></label><label>Source<select id="b_source">'+["Direct","Téléphone","Booking.com","Airbnb","Facebook / Instagram","Bouche à oreille","Autre"].map(s=>opt(s,s,b.source)).join("")+'</select></label></div>'
+   + '<div id="b_warn"></div><div class="summary" id="b_sum"></div>'
+   + '<div><h3>Paiements</h3><div id="b_pays"></div><div class="g2" style="margin-top:8px"><label>Montant (DT)<input id="p_amt" type="number" min="0" step="0.5" placeholder="0"></label><label>Mode<select id="p_meth">'+["Espèces","Virement","Carte","Chèque","Plateforme"].map(s=>opt(s,s)).join("")+'</select></label></div><div class="row" style="margin-top:8px"><input id="p_date" type="date" value="'+today()+'" style="flex:1"><button type="button" class="btn sm" id="p_add"'+dis()+'>+ Ajouter le paiement</button></div></div>'
+   + '<label>Notes<textarea id="b_notes" rows="2" placeholder="Heure d\'arrivée, demande particulière…">'+esc(b.notes)+'</textarea></label>'
+   + '<div id="b_err"></div>'
+   + '<div class="row spread"><div class="row">'+(!isNew?(b.status==="annulee"?'<button type="button" class="btn sm" id="b_restore"'+dis()+'>Rétablir</button>':'<button type="button" class="btn sm" id="b_cancel"'+dis()+'>Annuler la réservation</button>')+'<button type="button" class="btn sm danger" id="b_del"'+dis()+'>Supprimer</button>':'')+'</div><button class="btn primary" type="submit"'+dis()+'>Enregistrer</button></div></form>';
+  openSheet(html, sh=>{
+    const g = id => $("#"+id, sh);
+    const sync = () => {
+      g("newClient").hidden = g("b_client").value!=="__new";
+      const n = nights(g("b_in").value||today(), g("b_out").value||today());
+      b.total = n * (Number(g("b_price").value)||0);
+      const p = paid(b);
+      g("b_sum").innerHTML = '<div><span>'+n+' nuit(s) × '+dt(g("b_price").value)+'</span><span class="num">'+dt(b.total)+'</span></div><div><span>Déjà payé</span><span class="num">'+dt(p)+'</span></div><div class="big"><span>Reste à payer</span><span class="num">'+dt(Math.max(0,b.total-p))+'</span></div>';
+      const ci=g("b_in").value, co=g("b_out").value, rid=g("b_room").value;
+      const clash = ci&&co ? activeBookings().filter(x=>x.id!==b.id && x.roomId===rid && x.checkIn<co && ci<x.checkOut) : [];
+      const r = room(rid), gu = Number(g("b_guests").value)||1;
+      let w = clash.map(x=>'<div class="note warn">Chambre déjà prise du '+fmtD(x.checkIn)+' au '+fmtD(x.checkOut)+' ('+esc(client(x.clientId)?.name||"")+').</div>').join("");
+      if(r && g("b_baby").checked && !r.babyBed) w += '<div class="note warn">'+esc(r.name)+' n\'est pas prévue pour un lit bébé.</div>';
+      if(r && r.capacity && gu>r.capacity) w += '<div class="note warn">'+esc(r.name)+' accueille '+r.capacity+' personnes maximum.</div>';
+      g("b_warn").innerHTML = w;
+      g("b_pays").innerHTML = (b.payments||[]).length ? b.payments.map((p,i)=>'<div class="pay num"><span>'+fmtD(p.date)+' · '+esc(p.method)+'</span><span>'+dt(p.amount)+(S.canWrite?' <button type="button" class="btn sm ghost" data-rmpay="'+i+'" aria-label="Retirer ce paiement">×</button>':'')+'</span></div>').join("") : '<div class="s" style="color:var(--muted);font-size:.85rem">Aucun paiement pour l\'instant.</div>';
+    };
+    g("b_room").addEventListener("change",()=>{ const r=room(g("b_room").value); if(r && isNew) g("b_price").value=r.price||0; sync(); });
+    g("b_in").addEventListener("change",()=>{ if(g("b_out").value<=g("b_in").value) g("b_out").value=addDays(g("b_in").value,1); sync(); });
+    ["b_out","b_price","b_guests","b_client"].forEach(id=>g(id).addEventListener("input",sync));
+    g("b_baby").addEventListener("change",sync);
+    g("b_client").addEventListener("change",sync);
+    g("p_add").addEventListener("click",()=>{ const a=Number(g("p_amt").value); if(!(a>0)){ g("p_amt").focus(); return; } b.payments=(b.payments||[]).concat([{amount:a,method:g("p_meth").value,date:g("p_date").value||today()}]); g("p_amt").value=""; sync(); });
+    g("b_pays").addEventListener("click",e=>{ const i=e.target.dataset.rmpay; if(i!=null){ b.payments.splice(Number(i),1); sync(); } });
+    if(g("b_cancel")) g("b_cancel").addEventListener("click", async()=>{ b.status="annulee"; if(await save("bookings",b.id,strip(b))){ closeSheet(); toast("Réservation annulée"); } });
+    if(g("b_restore")) g("b_restore").addEventListener("click", async()=>{ b.status="confirmee"; if(await save("bookings",b.id,strip(b))){ closeSheet(); toast("Réservation rétablie"); } });
+    if(g("b_del")) armDelete(g("b_del"), async()=>{ if(await remove("bookings",b.id)){ closeSheet(); toast("Réservation supprimée"); } });
+    g("bf").addEventListener("submit", async e=>{
+      e.preventDefault();
+      const err = m => g("b_err").innerHTML='<div class="note bad">'+m+'</div>';
+      let cid = g("b_client").value;
+      if(cid==="__new"){
+        const name = g("nc_name").value.trim(); if(!name) return err("Indiquez le nom du client.");
+        cid = uid(); if(!await save("clients",cid,{name, phone:g("nc_phone").value.trim(), nationality:"", idDoc:"", notes:""})) return;
+      }
+      if(!cid) return err("Choisissez un client.");
+      if(!g("b_room").value) return err("Ajoutez d'abord une chambre.");
+      if(nights(g("b_in").value,g("b_out").value)<1) return err("Le départ doit être après l'arrivée.");
+      Object.assign(b,{clientId:cid, roomId:g("b_room").value, guests:Number(g("b_guests").value)||1, babyBed:g("b_baby").checked, checkIn:g("b_in").value, checkOut:g("b_out").value, pricePerNight:Number(g("b_price").value)||0, source:g("b_source").value, notes:g("b_notes").value.trim()});
+      b.total = nights(b.checkIn,b.checkOut)*b.pricePerNight; delete b.example;
+      if(await save("bookings",b.id,strip(b))){ closeSheet(); toast("Réservation enregistrée"); }
+    });
+    sync();
+  });
+}
+
+function clientSheet(c){
+  const isNew = !c; c = c ? {...c} : { id:uid(), name:"", phone:"", nationality:"", idDoc:"", notes:"" };
+  const stays = S.bookings.filter(b=>b.clientId===c.id);
+  openSheet('<form class="f" id="cf"><div class="row spread"><h2>'+(isNew?'Nouveau client':'Fiche client')+'</h2><button type="button" class="btn ghost" data-act="close">Fermer</button></div>'
+    + '<label>Nom complet<input id="c_name" value="'+esc(c.name)+'" autocomplete="off"></label>'
+    + '<div class="g2"><label>Téléphone<input id="c_phone" type="tel" value="'+esc(c.phone)+'"></label><label>Nationalité<input id="c_nat" value="'+esc(c.nationality)+'"></label></div>'
+    + '<label>Pièce d\'identité (CIN / passeport)<input id="c_id" value="'+esc(c.idDoc)+'" placeholder="Type et numéro"></label>'
+    + '<label>Notes<textarea id="c_notes" rows="2" placeholder="Préférences, allergies, habitué…">'+esc(c.notes)+'</textarea></label>'
+    + (stays.length?'<div><h3>Séjours</h3><div class="list">'+stays.map(b=>bookingItem(b)).join("")+'</div></div>':'')
+    + '<div id="c_err"></div><div class="row spread"><div>'+(!isNew?'<button type="button" class="btn sm danger" id="c_del"'+dis()+'>Supprimer</button>':'')+'</div><button class="btn primary" type="submit"'+dis()+'>Enregistrer</button></div></form>', sh=>{
+    const g = id => $("#"+id, sh);
+    if(g("c_del")) armDelete(g("c_del"), async()=>{ if(stays.length){ g("c_err").innerHTML='<div class="note warn">Ce client a des réservations. Supprimez-les d\'abord.</div>'; return; } if(await remove("clients",c.id)){ closeSheet(); toast("Client supprimé"); } });
+    g("cf").addEventListener("submit", async e=>{ e.preventDefault();
+      const name=g("c_name").value.trim(); if(!name){ g("c_err").innerHTML='<div class="note bad">Indiquez le nom du client.</div>'; return; }
+      Object.assign(c,{name, phone:g("c_phone").value.trim(), nationality:g("c_nat").value.trim(), idDoc:g("c_id").value.trim(), notes:g("c_notes").value.trim()}); delete c.example;
+      if(await save("clients",c.id,strip(c))){ closeSheet(); toast("Client enregistré"); } });
+  });
+}
+
+const CATS = ["Courses / petit-déjeuner","Ménage et linge","Électricité / eau / gaz","Entretien et réparations","Commission plateforme","Salaire / aide","Autre"];
+function expenseSheet(x){
+  const isNew=!x; x = x?{...x}:{ id:uid(), date:today(), category:CATS[0], label:"", amount:"" };
+  openSheet('<form class="f" id="ef"><div class="row spread"><h2>'+(isNew?'Nouvelle dépense':'Dépense')+'</h2><button type="button" class="btn ghost" data-act="close">Fermer</button></div>'
+    + '<div class="g2"><label>Date<input id="e_date" type="date" value="'+x.date+'"></label><label>Montant (DT)<input id="e_amt" type="number" min="0" step="0.5" value="'+esc(x.amount)+'"></label></div>'
+    + '<label>Catégorie<select id="e_cat">'+CATS.map(c=>opt(c,c,x.category)).join("")+'</select></label>'
+    + '<label>Détail<input id="e_label" value="'+esc(x.label)+'" placeholder="Ex. pain, œufs, confiture"></label>'
+    + '<div id="e_err"></div><div class="row spread"><div>'+(!isNew?'<button type="button" class="btn sm danger" id="e_del"'+dis()+'>Supprimer</button>':'')+'</div><button class="btn primary" type="submit"'+dis()+'>Enregistrer</button></div></form>', sh=>{
+    const g=id=>$("#"+id,sh);
+    if(g("e_del")) armDelete(g("e_del"), async()=>{ if(await remove("expenses",x.id)){ closeSheet(); toast("Dépense supprimée"); } });
+    g("ef").addEventListener("submit", async e=>{ e.preventDefault(); const a=Number(g("e_amt").value); if(!(a>0)){ g("e_err").innerHTML='<div class="note bad">Indiquez un montant.</div>'; return; }
+      Object.assign(x,{date:g("e_date").value||today(), amount:a, category:g("e_cat").value, label:g("e_label").value.trim()}); delete x.example;
+      if(await save("expenses",x.id,strip(x))){ closeSheet(); toast("Dépense enregistrée"); } });
+  });
+}
+
+function roomSheet(r){
+  const isNew=!r; r = r?{...r}:{ id:uid(), name:"Chambre "+(S.rooms.length+1), short:String(S.rooms.length+1), price:150, capacity:2, beds:"double", babyBed:true, status:"propre", note:"", order:S.rooms.length+1 };
+  openSheet('<form class="f" id="rf"><div class="row spread"><h2>'+(isNew?'Nouvelle chambre':'Chambre')+'</h2><button type="button" class="btn ghost" data-act="close">Fermer</button></div>'
+    + '<div class="g2"><label>Nom<input id="r_name" value="'+esc(r.name)+'"></label><label>Repère court<input id="r_short" maxlength="4" value="'+esc(r.short)+'"></label></div>'
+    + '<div class="g2"><label>Prix par nuit (DT)<input id="r_price" type="number" min="0" step="0.5" value="'+esc(r.price)+'"></label><label>Capacité (pers.)<input id="r_cap" type="number" min="1" value="'+esc(r.capacity)+'"></label></div>'
+    + '<div class="g2"><label>Lits<select id="r_beds">'+opt("double","Lit double",r.beds)+opt("separes","2 lits séparés",r.beds)+opt("autre","Autre",r.beds)+'</select></label><label style="display:flex;align-items:center;gap:8px;color:var(--fg);align-self:end;padding-bottom:9px"><input id="r_baby" type="checkbox" style="width:auto"'+(r.babyBed?' checked':'')+'> Lit bébé possible</label></div>'
+    + '<label>État<select id="r_status">'+opt("propre","Propre",r.status)+opt("a_nettoyer","À nettoyer",r.status)+opt("reparation","Réparation",r.status)+'</select></label>'
+    + '<label>Note<input id="r_note" value="'+esc(r.note)+'" placeholder="Ex. vue patio, lit double, clim à vérifier"></label>'
+    + '<div id="r_err"></div><div class="row spread"><div>'+(!isNew?'<button type="button" class="btn sm danger" id="r_del"'+dis()+'>Supprimer</button>':'')+'</div><button class="btn primary" type="submit"'+dis()+'>Enregistrer</button></div></form>', sh=>{
+    const g=id=>$("#"+id,sh);
+    if(g("r_del")) armDelete(g("r_del"), async()=>{ if(S.bookings.some(b=>b.roomId===r.id && b.status!=="annulee")){ g("r_err").innerHTML='<div class="note warn">Cette chambre a des réservations. Déplacez-les ou supprimez-les d\'abord.</div>'; return; } if(await remove("rooms",r.id)){ closeSheet(); toast("Chambre supprimée"); } });
+    g("rf").addEventListener("submit", async e=>{ e.preventDefault(); const name=g("r_name").value.trim(); if(!name){ g("r_err").innerHTML='<div class="note bad">Donnez un nom à la chambre.</div>'; return; }
+      Object.assign(r,{name, short:g("r_short").value.trim()||name.slice(0,3), price:Number(g("r_price").value)||0, capacity:Number(g("r_cap").value)||1, beds:g("r_beds").value, babyBed:g("r_baby").checked, status:g("r_status").value, note:g("r_note").value.trim()}); delete r.example;
+      if(await save("rooms",r.id,strip(r))){ closeSheet(); toast("Chambre enregistrée"); } });
+  });
+}
+
+function armDelete(btn, fn){
+  btn.addEventListener("click", ()=>{
+    if(btn.classList.contains("armed")){ fn(); return; }
+    btn.classList.add("armed"); btn.textContent="Confirmer la suppression";
+    setTimeout(()=>{ if(btn.isConnected){ btn.classList.remove("armed"); btn.textContent="Supprimer"; } }, 4000);
+  });
+}
+
+// ---------- events ----------
+$("#tabs").addEventListener("click", e=>{ const b=e.target.closest("button[data-tab]"); if(!b) return; S.tab=b.dataset.tab; store.set("ds_tab",S.tab); render(); window.scrollTo(0,0); });
+let clearArmed = false;
+document.addEventListener("click", async e=>{
+  const el = e.target.closest("[data-act]"); if(!el) return;
+  const a = el.dataset.act, id = el.dataset.id;
+  if(a==="close-bg"){ if(e.target===el) closeSheet(); return; }
+  if(a==="close") return closeSheet();
+  if(a==="new-booking"){ if(!S.canWrite) return; bookingSheet(null); if(el.dataset.room){ const sh=$("#sheetRoot .sheet"); $("#b_room",sh).value=el.dataset.room; $("#b_in",sh).value=el.dataset.day; $("#b_out",sh).value=addDays(el.dataset.day,1); const r=room(el.dataset.room); if(r) $("#b_price",sh).value=r.price||0; $("#b_room",sh).dispatchEvent(new Event("input")); $("#b_in",sh).dispatchEvent(new Event("input")); $("#b_price",sh).dispatchEvent(new Event("input")); } return; }
+  if(a==="edit-booking"){ const b=S.bookings.find(x=>x.id===id); if(b) bookingSheet(b); return; }
+  if(a==="new-client") return clientSheet(null);
+  if(a==="edit-client"){ const c=client(id); if(c) clientSheet(c); return; }
+  if(a==="new-expense") return expenseSheet(null);
+  if(a==="edit-expense"){ const x=S.expenses.find(y=>y.id===id); if(x) expenseSheet(x); return; }
+  if(a==="new-room") return roomSheet(null);
+  if(a==="edit-room"){ const r=room(id); if(r) roomSheet(r); return; }
+  if(a==="cycle-status"){ const r=room(id); if(!r) return; const order=["propre","a_nettoyer","reparation"]; const nx=order[(order.indexOf(r.status||"propre")+1)%3]; await save("rooms",r.id,{...strip(r),status:nx}); return; }
+  if(a==="cal-prev"){ S.calStart=addDays(S.calStart,-7); return render(); }
+  if(a==="cal-next"){ S.calStart=addDays(S.calStart,7); return render(); }
+  if(a==="cal-today"){ S.calStart=addDays(today(),-1); return render(); }
+  if(a==="resa-filter"){ S.resaFilter=el.dataset.f; return render(); }
+  if(a==="fin-month"){ S.finMonth=el.dataset.m; return render(); }
+  if(a==="clear-ex"){
+    if(!clearArmed){ clearArmed=true; el.textContent="Confirmer : tout supprimer"; el.classList.add("danger","armed"); setTimeout(()=>{clearArmed=false; render();},4000); return; }
+    clearArmed=false; el.disabled=true;
+    for(const col of ["bookings","clients","expenses"]) for(const x of S[col].filter(y=>y.example)) await remove(col,x.id);
+    for(const r of S.rooms.filter(y=>y.example)) await save("rooms",r.id,(({example,...rest})=>strip(rest))(r));
+    toast("Exemples supprimés"); return;
+  }
+});
+document.addEventListener("input", e=>{ if(e.target.id==="clientQ"){ S.clientQ=e.target.value; const pos=e.target.selectionStart; render(); const i=$("#clientQ"); if(i){ i.focus(); try{i.setSelectionRange(pos,pos)}catch(_){} } } });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape" && sheetOpen) closeSheet(); });
+
+boot();
+})();
+</script>
+</body>
+</html>
