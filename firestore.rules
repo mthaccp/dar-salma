@@ -5,8 +5,8 @@ service cloud.firestore {
     // Un identifiant « ghazi » correspond à « ghazi@darsalma.local » dans Firebase.
     function autorise() {
       return request.auth != null && request.auth.token.email in [
-        'IDENTIFIANT1@darsalma.local',
-        'IDENTIFIANT2@darsalma.local'
+        'ghazi@darsalma.local',
+        'maman@darsalma.local'
       ];
     }
     match /{document=**} {
