@@ -44,7 +44,8 @@
   --ok:#6cc495; --ok-soft:#1d3329; --warn:#e3a35c; --warn-soft:#3a2b1b; --bad:#ec8383; --bad-soft:#3d2224;
   color-scheme:dark}
 *{box-sizing:border-box}
-html,body{overflow-x:hidden;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{overflow-x:clip}
 nav.tabs .ic{display:none;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 nav.tabs .ls{display:none}
 [hidden]{display:none!important}
@@ -149,8 +150,16 @@ form.f{display:grid;gap:12px}
   nav.tabs .ic{display:block}
   nav.tabs .ll{display:none}
   nav.tabs .ls{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
-  .top-in{flex-wrap:nowrap}
-  .brand{min-width:0}
+  .top-in{flex-wrap:nowrap;gap:10px}
+  .brand{min-width:0;flex:1 1 auto;gap:10px}
+  .brand img{width:40px;height:40px;flex:none}
+  .brand .bt{min-width:0}
+  .brand h1{font-size:1.05rem;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  header .out{padding:8px;border-radius:50%}
+  header .out .lo{display:block}
+  header .out .lot{display:none}
+  main .row.spread h2{min-width:0;flex:1 1 auto}
   nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--accent)}
   .g2{grid-template-columns:1fr 1fr}
 }
@@ -175,7 +184,8 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.88
 .tbl th,.tbl td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--line)}.tbl th:first-child,.tbl td:first-child{text-align:left}
 .tbl th{color:var(--muted);font-weight:600}
 .tip{position:fixed;z-index:80;background:var(--fg);color:var(--bg);font-size:.8rem;font-weight:600;padding:6px 10px;border-radius:8px;pointer-events:none;max-width:240px}
-.out{background:transparent;color:var(--on-navy);border-color:rgba(243,239,230,.35)}
+.out{background:transparent;color:var(--on-navy);border-color:rgba(243,239,230,.35);display:inline-flex;align-items:center;gap:6px;flex:none}
+.out .lo{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:none}
 .login{position:fixed;inset:0;z-index:70;background:var(--navy);display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));overflow:auto}
 .login-card{background:var(--surface);border-radius:18px;padding:28px 24px;width:min(380px,100%);display:grid;gap:14px;border-top:3px solid var(--gold)}
 .login-card .lg{width:120px;height:120px;border-radius:14px;margin:0 auto;display:block}
@@ -196,7 +206,7 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.88
     <button data-tab="fin"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg><span class="ll">Finances</span><span class="ls">Finances</span></button>
     <button data-tab="ana"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M7 16v-5M12 16V6M17 16v-8"/></svg><span class="ll">Analyse</span><span class="ls">Analyse</span></button>
   </nav>
-  <button class="btn sm out" id="logout" hidden>Déconnexion</button>
+  <button class="btn sm out" id="logout" hidden aria-label="Déconnexion"><svg class="lo" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10"/></svg><span class="lot">Déconnexion</span></button>
 </div></header>
 <main class="wrap" id="main"></main>
 <div id="sheetRoot"></div>
@@ -215,12 +225,12 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.88
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=10"></script>
+<script src="firebase-config.js?v=11"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "10";
+const APP_VERSION = "11";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
