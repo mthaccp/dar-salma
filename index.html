@@ -230,7 +230,8 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 .f label .btn{color:var(--fg)}
 .sec{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--sc);border-radius:var(--r);overflow:hidden;min-width:0}
 .sec>.sh{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--sunk);background:color-mix(in srgb,var(--sc) 10%,var(--surface));border-bottom:1px solid var(--line);flex-wrap:wrap}
-.sec>.sh h3{margin:0;color:var(--sc)}
+.sec>.sh h3{margin:0;color:var(--sc);flex:1 1 0;min-width:0}
+.sec>.sh .sp{display:none}
 .sec>.sh>svg{width:19px;height:19px;fill:none;stroke:var(--sc);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .sec .cnt{background:var(--sc);color:var(--surface);border-radius:999px;font-size:.72rem;font-weight:800;padding:1px 8px;line-height:1.5}
 .sec .sp{flex:1}
@@ -244,6 +245,9 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 .done{display:inline-flex;align-items:center;gap:4px;font-size:.8rem;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap;flex:none}
 .done.ok{background:var(--ok-soft);color:var(--ok)}
 .done.out{background:var(--sunk);color:var(--k-out)}
+.pill.occ{background:color-mix(in srgb,var(--k-out) 14%,var(--surface));color:var(--k-out)}
+.roomtag.occ{background:var(--k-out);color:#fff}
+.ctrl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex:none;max-width:60%}
 .r1{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .r1 .t{min-width:0}
 .sm-only{display:none}
@@ -325,12 +329,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=30"></script>
+<script src="firebase-config.js?v=31"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "30";
+const APP_VERSION = "31";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -390,7 +394,8 @@ const priceLabel = r => dt(r.price)+(roomMode(r)==="personne"?" / pers. / nuit":
 const AUTO_SINCE = "2026-10-18T21:00:00";
 const departAt = b => new Date(b.checkOut+"T"+((S.settings&&S.settings.checkoutTime)||"12:00")+":00");
 function lastDeparture(r){ const now=new Date(); let best=null; activeBookings().forEach(b=>{ if(b.roomId===r.id || (isHouse(b.roomId) && !r.wholeHouse)){ const d=b.departedAt?new Date(b.departedAt):departAt(b); if(d<=now && (!best||d>best)) best=d; } }); return best; }
-function roomState(r){ if(r.status==="reparation") return "reparation"; const ld=lastDeparture(r), since=new Date(r.cleanedAt||AUTO_SINCE); if(ld && ld>since) return "a_nettoyer"; return r.status==="a_nettoyer" ? "a_nettoyer" : "propre"; }
+function guestInside(r){ const t=today(), now=new Date(); return activeBookings().find(b=>(b.roomId===r.id || (isHouse(b.roomId) && !r.wholeHouse)) && b.arrivedAt && !b.departedAt && b.checkIn<=t && (b.checkOut>t || (b.checkOut===t && now<departAt(b)))); }
+function roomState(r){ if(r.status==="reparation") return "reparation"; if(guestInside(r)) return "occupee"; const ld=lastDeparture(r), since=new Date(r.cleanedAt||AUTO_SINCE); if(ld && ld>since) return "a_nettoyer"; return r.status==="a_nettoyer" ? "a_nettoyer" : "propre"; }
 const isHouse = id => { const r=room(id); return !!(r&&r.wholeHouse); };
 const units = () => S.rooms.filter(r=>!r.wholeHouse);
 const overlaps = (x, rid, ci, co) => x.checkIn<co && ci<x.checkOut && (x.roomId===rid || isHouse(x.roomId) || isHouse(rid));
@@ -526,7 +531,7 @@ function vJour(){
   const dueSum = due.reduce((s,b)=>s+balance(b),0);
   const tom = addDays(t,1);
   const arrTom = activeBookings().filter(b=>b.checkIn===tom);
-  const dirty = units().filter(r=>roomState(r)==="a_nettoyer").length;
+  const dirty = units().filter(r=>roomState(r)==="a_nettoyer").length, insideN = units().filter(r=>roomState(r)==="occupee").length;
   let h = '<div class="row spread"><h2>'+fmtLong(t).replace(/^./,c=>c.toUpperCase())+'</h2><button class="btn primary hm" data-act="new-booking"'+(S.canWrite?'':' disabled')+'>+ Réservation</button></div>';
   const soon = upcomingArrivals(24);
   const opts = activeBookings().filter(isOption).sort((a,b)=>String(a.depositBy||a.checkIn).localeCompare(String(b.depositBy||b.checkIn)));
@@ -548,13 +553,24 @@ function vJour(){
   const departed = dep.filter(b=>b.departedAt).length;
   h += sec("out","out","Départs aujourd\'hui"+(dep.length?' · '+departed+'/'+dep.length+' parti'+(departed>1?'s':''):''),dep.length,"", dep.length?dep.map(b=>bookingItem(b, b.departedAt?'':'départ avant '+(S.settings.checkoutTime||"12:00"), departBtn(b))).join(""):'<div class="empty">Aucun départ aujourd\'hui.</div>');
   h += '</div><div class="colstack">';
-  h += sec("clean","clean","Ménage et état des chambres"+(dirty?' · '+dirty+' à nettoyer':''),0,(S.canWrite?'<button class="btn sm ghost edit" data-act="rooms-sheet">'+PEN_SVG+'Modifier les chambres</button>':''),
+  h += sec("clean","clean","État des chambres"+(insideN?' · '+insideN+' occupée'+(insideN>1?'s':''):'')+(dirty?' · '+dirty+' à nettoyer':''),0,(S.canWrite?'<button class="btn sm ghost edit" data-act="rooms-sheet">'+PEN_SVG+'Modifier les chambres</button>':''),
     units().length?units().map(r=>{
-      const o = occupying(r.id,t); const c = o?client(o.clientId):null;
+      const o = occupying(r.id,t), inside = guestInside(r), cur = inside || o, c = cur?client(cur.clientId):null;
       const leaving = dep.find(b=>b.roomId===r.id || isHouse(b.roomId));
       const st = roomState(r), ld = lastDeparture(r), autoDirty = st==="a_nettoyer" && ld && ld > new Date(r.cleanedAt||AUTO_SINCE);
-      const pill = st==="propre"?'<span class="pill ok">Propre</span>':st==="a_nettoyer"?'<span class="pill warn">À nettoyer</span>':'<span class="pill bad">Réparation</span>';
-      return '<div class="item'+(S.canWrite?' click" data-act="edit-room" data-id="'+r.id:'')+'"><span class="roomtag">'+esc(r.short||r.name)+'</span><div class="grow"><div class="t">'+esc(r.name)+'</div><div class="s">'+(o?'Occupée'+(isHouse(o.roomId)?' (maison entière)':'')+' · '+esc(c?c.name:"")+' jusqu\'au '+fmtD(o.checkOut)+(o.babyBed?' · lit bébé':''):leaving?(autoDirty?'Départ fait · ménage à faire':'Départ aujourd\'hui à '+(S.settings.checkoutTime||"12:00")):'Libre ce soir')+(autoDirty&&!leaving?' · depuis le départ du '+fmtD(toISO(ld)):'')+(r.beds==="separes"?' · lits séparés':'')+'</div></div>'+(!S.canWrite ? pill : st==="a_nettoyer" ? '<button class="btn sm primary" data-act="cycle-status" data-id="'+r.id+'">Marquer propre</button>' : '<button class="pillbtn '+(st==="propre"?'ok':'bad')+'" data-act="cycle-status" data-id="'+r.id+'" title="'+(st==="propre"?'Toucher pour marquer à nettoyer':'Toucher quand la réparation est faite')+'">'+(st==="propre"?'Propre':'Réparation')+'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg></button>')+'</div>';
+      let sub;
+      if(inside) sub = 'Occupée'+(isHouse(inside.roomId)?' (maison entière)':'')+' · '+esc(c?c.name:"")+' · départ '+(inside.checkOut===t?'aujourd\'hui':'le '+fmtD(inside.checkOut))+(inside.babyBed?' · lit bébé':'');
+      else if(o && o.checkIn===t) sub = 'Arrivée prévue à '+(o.arrivalTime||"14:00")+' · '+esc(c?c.name:"");
+      else if(o) sub = 'Réservée · '+esc(c?c.name:"")+' (arrivée non confirmée)';
+      else if(leaving) sub = autoDirty ? 'Départ fait · ménage à faire' : 'Départ aujourd\'hui à '+(S.settings.checkoutTime||"12:00");
+      else sub = autoDirty ? 'Ménage à faire depuis le départ du '+fmtD(toISO(ld)) : 'Libre ce soir';
+      if(r.beds==="separes") sub += ' · lits séparés';
+      let ctrl;
+      if(st==="occupee") ctrl = '<span class="pill occ">Occupée</span>'+(inside.checkOut===t?departBtn(inside):'');
+      else if(!S.canWrite) ctrl = st==="propre"?'<span class="pill ok">Propre</span>':st==="a_nettoyer"?'<span class="pill warn">À nettoyer</span>':'<span class="pill bad">Réparation</span>';
+      else if(st==="a_nettoyer") ctrl = '<button class="btn sm primary" data-act="cycle-status" data-id="'+r.id+'">Marquer propre</button>';
+      else ctrl = (o && o.checkIn===t && !o.arrivedAt ? arriveBtn(o) : '') + '<button class="pillbtn '+(st==="propre"?'ok':'bad')+'" data-act="cycle-status" data-id="'+r.id+'" title="'+(st==="propre"?'Toucher pour marquer à nettoyer':'Toucher quand la réparation est faite')+'">'+(st==="propre"?'Propre':'Réparation')+'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg></button>';
+      return '<div class="item'+(S.canWrite?' click" data-act="edit-room" data-id="'+r.id:'')+'"><span class="roomtag'+(st==="occupee"?' occ':'')+'">'+esc(r.short||r.name)+'</span><div class="grow"><div class="t">'+esc(r.name)+'</div><div class="s">'+sub+'</div></div><div class="ctrl">'+ctrl+'</div></div>';
     }).join(""):'<div class="empty">Aucune chambre. Ajoutez-les dans Finances › Chambres.</div>');
   h += sec("due","coins","Soldes à encaisser",due.length,(due.length?'<b class="num" style="color:var(--k-due)">'+dt(dueSum)+'</b>':''), due.length?due.map(b=>bookingItem(b)).join(""):'<div class="empty">Tout est encaissé.</div>');
   h += '</div></div>';
@@ -1090,7 +1106,7 @@ function roomSheet(r){
     + (r.wholeHouse?'':'<label>Type de tarif<select id="r_mode">'+opt("personne","Par personne et par nuit",roomMode(r))+opt("nuit","Par nuit (chambre entière)",roomMode(r))+'</select></label>')
     + '<div class="g2"><label><span id="r_price_l">'+(roomMode(r)==="personne"?"Prix / pers. / nuit (DT)":"Prix par nuit (DT)")+'</span><input id="r_price" type="number" min="0" step="0.5" value="'+esc(r.price)+'"></label><label>Capacité (pers.)<input id="r_cap" type="number" min="1" value="'+esc(r.capacity)+'"></label></div>'
     + '<div class="g2"><label>Lits<select id="r_beds">'+opt("double","Lit double",r.beds)+opt("separes","2 lits séparés",r.beds)+opt("autre","Autre",r.beds)+'</select></label><label style="display:flex;align-items:center;gap:8px;color:var(--fg);align-self:end;padding-bottom:9px"><input id="r_baby" type="checkbox" style="width:auto"'+(r.babyBed?' checked':'')+'> Lit bébé possible</label></div>'
-    + '<label>État<select id="r_status">'+opt("propre","Propre",roomState(r))+opt("a_nettoyer","À nettoyer",roomState(r))+opt("reparation","Réparation",roomState(r))+'</select></label>'
+    + '<label>État<select id="r_status">'+opt("propre","Propre",roomState(r)==="occupee"?(r.status||"propre"):roomState(r))+opt("a_nettoyer","À nettoyer",roomState(r))+opt("reparation","Réparation",roomState(r))+'</select></label>'
     + '<label>Informations<textarea id="r_note" rows="3" placeholder="Ex. vue sur le patio, salle de bain privée, climatisation, étage">'+esc(r.note)+'</textarea></label>'
     + '<div id="r_err"></div><div class="row spread"><div>'+(!isNew?'<button type="button" class="btn sm danger" id="r_del"'+dis()+'>Supprimer</button>':'')+'</div><button class="btn primary" type="submit"'+dis()+'>Enregistrer</button></div></form>', sh=>{
     const g=id=>$("#"+id,sh);
@@ -1133,7 +1149,7 @@ document.addEventListener("click", async e=>{
   if(a==="settings") return settingsSheet();
   if(a==="ics-all") return downloadIcs(upcomingArrivals(24), "arrivees-24h.ics");
   if(a==="ics-upcoming"){ const t=today(); return downloadIcs(activeBookings().filter(b=>b.checkIn>=t).sort((x,y)=>x.checkIn.localeCompare(y.checkIn)), "arrivees-a-venir.ics"); }
-  if(a==="cycle-status"){ const r=room(id); if(!r) return; const cur=roomState(r); const nx = cur==="propre" ? "a_nettoyer" : "propre";
+  if(a==="cycle-status"){ const r=room(id); if(!r) return; const cur=roomState(r); if(cur==="occupee") return; const nx = cur==="propre" ? "a_nettoyer" : "propre";
     const data={...strip(r), status:nx}; if(nx==="propre") data.cleanedAt=new Date().toISOString(); if(await save("rooms",r.id,data)) toast(nx==="propre"?r.name+" est propre":r.name+" à nettoyer"); return; }
   if(a==="cal-prev"){ S.calStart=addDays(S.calStart,-7); return render(); }
   if(a==="cal-next"){ S.calStart=addDays(S.calStart,7); return render(); }
