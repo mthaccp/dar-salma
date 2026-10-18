@@ -230,7 +230,8 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 .f label .btn{color:var(--fg)}
 .sec{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--sc);border-radius:var(--r);overflow:hidden;min-width:0}
 .sec>.sh{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--sunk);background:color-mix(in srgb,var(--sc) 10%,var(--surface));border-bottom:1px solid var(--line);flex-wrap:wrap}
-.sec>.sh h3{margin:0;color:var(--sc);flex:1 1 160px;min-width:0}
+.sec>.sh h3{margin:0;color:var(--sc);flex:1 1 auto;min-width:0}
+@media (min-width:761px){.sec>.sh{flex-wrap:nowrap}.sec>.sh .btn{white-space:nowrap}}
 .sec>.sh .sp{display:none}
 .sec>.sh>svg{width:19px;height:19px;fill:none;stroke:var(--sc);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .sec .cnt{background:var(--sc);color:var(--surface);border-radius:999px;font-size:.72rem;font-weight:800;padding:1px 8px;line-height:1.5}
@@ -356,12 +357,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=37"></script>
+<script src="firebase-config.js?v=38"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "37";
+const APP_VERSION = "38";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
