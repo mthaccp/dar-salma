@@ -263,6 +263,13 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 .colstack{gap:12px}
 .panel{gap:16px}
 @media (max-width:760px){.tiles{grid-template-columns:1fr 1fr}.tile{padding:10px}.tile .t{font-size:.9rem}.tile .ctrl{gap:4px}.tile .ctrl .btn,.tile .ctrl .pillbtn{padding:4px 8px;font-size:.76rem}.sec .emp{margin-left:0;flex-basis:100%}}
+.catline{display:flex;flex-wrap:wrap;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.pen-r{color:var(--muted);margin-left:auto;display:inline-flex}
+.setrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.setbtn{all:unset;box-sizing:border-box;cursor:pointer;padding:12px 14px;display:grid;gap:2px;box-shadow:inset -1px 0 0 var(--line)}
+.setbtn:hover{background:var(--sunk)}.setbtn:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.setbtn b{font-weight:600}.setbtn span{color:var(--muted);font-size:.84rem}
+.setbtn.danger b{color:var(--bad)}
 .r1{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .r1 .t{min-width:0}
 .sm-only{display:none}
@@ -344,12 +351,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=34"></script>
+<script src="firebase-config.js?v=35"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "34";
+const APP_VERSION = "35";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -701,13 +708,21 @@ function vFin(){
   const byCat = {}; exps.forEach(e=>byCat[e.category||"Autre"]=(byCat[e.category||"Autre"]||0)+(Number(e.amount)||0));
   const prev = toISO(new Date(y,mo-2,1)).slice(0,7), next = toISO(new Date(y,mo,1)).slice(0,7);
   let h = '<div class="row spread"><h2>'+MOIS[mo-1].replace(/^./,c=>c.toUpperCase())+' '+y+'</h2><div class="row"><button class="btn sm" data-act="fin-month" data-m="'+prev+'" aria-label="Mois précédent">←</button><button class="btn sm" data-act="fin-month" data-m="'+today().slice(0,7)+'">Ce mois</button><button class="btn sm" data-act="fin-month" data-m="'+next+'" aria-label="Mois suivant">→</button></div></div>';
-  h += '<div class="stats"><div class="stat"><span>Encaissé</span><b class="num">'+dt(enc)+'</b></div><div class="stat"><span>Dépenses</span><b class="num">'+dt(dep)+'</b></div><div class="stat"><span>Résultat</span><b class="num" style="color:'+(enc-dep>=0?'var(--ok)':'var(--bad)')+'">'+dt(enc-dep)+'</b></div><div class="stat"><span>Taux d\'occupation</span><b class="num">'+rate+' %</b></div></div>';
-  h += '<div class="cols"><div><div class="row spread" style="margin-bottom:8px"><h3 style="margin:0">Dépenses</h3><button class="btn sm primary" data-act="new-expense"'+(S.canWrite?'':' disabled')+'>+ Dépense</button></div>';
-  if(Object.keys(byCat).length) h += '<div class="row" style="margin-bottom:8px">'+Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<span class="pill info num">'+esc(k)+' · '+dt(v)+'</span>').join("")+'</div>';
-  h += '<div class="list">'+(exps.length?exps.map(e=>'<div class="item click" data-act="edit-expense" data-id="'+e.id+'"><div class="grow"><div class="t">'+esc(e.label||e.category)+(e.example?' <span class="pill ex">exemple</span>':'')+'</div><div class="s num">'+fmtD(e.date)+' · '+esc(e.category||"")+'</div></div><b class="num">'+dt(e.amount)+'</b></div>').join(""):'<div class="empty">Aucune dépense ce mois-ci.</div>')+'</div></div>';
-  h += '<div><h3>Paiements reçus</h3><div class="list">'+(pays.length?pays.map(p=>{const c=client(p.b.clientId);return '<div class="item click" data-act="edit-booking" data-id="'+p.b.id+'"><div class="grow"><div class="t">'+esc(c?c.name:"")+'</div><div class="s num">'+fmtD(p.date)+' · '+esc(p.method||"")+'</div></div><b class="num">'+dt(p.amount)+'</b></div>';}).join(""):'<div class="empty">Aucun paiement enregistré ce mois-ci.</div>')+'</div>';
-  h += '<div class="row spread" style="margin:16px 0 8px"><h3 style="margin:0">Paramètres</h3></div><div class="list"><div class="item click" data-act="settings"><div class="grow"><div class="t">Maison et services en plus</div><div class="s">Adresse, heures, Wi-Fi, consignes, liste des services</div></div><span class="btn sm">Modifier</span></div>'+(S.canWrite?'<div class="item click" data-act="reset"><div class="grow"><div class="t" style="color:var(--bad)">Remettre à zéro</div><div class="s">Effacer les réservations, clients, dépenses et photos</div></div><span class="btn sm danger">Effacer…</span></div>':'')+'</div>';
-  h += '<div class="row spread" style="margin:16px 0 8px"><h3 style="margin:0">Chambres</h3><button class="btn sm" data-act="new-room"'+(S.canWrite?'':' disabled')+'>+ Chambre</button></div><div class="list">'+(S.rooms.length?S.rooms.map(r=>'<div class="item click" data-act="edit-room" data-id="'+r.id+'"><span class="roomtag">'+esc(r.short||r.name)+'</span><div class="grow"><div class="t">'+esc(r.name)+'</div><div class="s">'+roomDesc(r)+(false?' · '+esc(r.note):'')+'</div></div><span class="num">'+priceLabel(r)+'</span><svg class="pen" style="color:var(--muted)" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg></div>').join(""):'<div class="empty">Aucune chambre.</div>')+'</div></div></div>';
+  h += '<div class="stats"><div class="stat" style="--sc:var(--k-arr)"><span>Encaissé</span><b class="num">'+dt(enc)+'</b></div><div class="stat" style="--sc:var(--k-due)"><span>Dépenses</span><b class="num">'+dt(dep)+'</b></div><div class="stat" style="--sc:var(--accent)"><span>Résultat</span><b class="num" style="color:'+(enc-dep>=0?'var(--ok)':'var(--bad)')+'">'+dt(enc-dep)+'</b></div><div class="stat" style="--sc:var(--k-out)"><span>Taux d\'occupation</span><b class="num">'+rate+' %</b></div></div>';
+  const cats = Object.keys(byCat).length ? '<div class="catline">'+Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<span class="pill info num">'+esc(k)+' · '+dt(v)+'</span>').join("")+'</div>' : '';
+  const expBody = exps.length ? cats+exps.map(e=>'<div class="item click" data-act="edit-expense" data-id="'+e.id+'"><div class="grow"><div class="t">'+esc(e.label||e.category)+'</div><div class="s num">'+fmtD(e.date)+' · '+esc(e.category||"")+'</div></div><b class="num">'+dt(e.amount)+'</b></div>').join("") : '<div class="empty">Aucune dépense ce mois-ci.</div>';
+  const payBody = pays.length ? pays.map(p=>{const c=client(p.b.clientId);return '<div class="item click" data-act="edit-booking" data-id="'+p.b.id+'"><div class="grow"><div class="t">'+esc(c?c.name:"")+'</div><div class="s num">'+fmtD(p.date)+' · '+esc(p.method||"")+'</div></div><b class="num">'+dt(p.amount)+'</b></div>';}).join("") : '<div class="empty">Aucun paiement enregistré ce mois-ci.</div>';
+  h += '<div class="cols"><div class="colstack">'
+     + sec("due","coins","Dépenses",exps.length,(S.canWrite?'<button class="btn sm ghost" data-act="new-expense">+ Dépense</button>':''), expBody)
+     + '</div><div class="colstack">'
+     + sec("arr","card","Paiements reçus",pays.length,(pays.length?'<b class="num" style="color:var(--k-arr)">'+dt(enc)+'</b>':''), payBody)
+     + '</div></div>';
+  const roomTiles = S.rooms.length ? S.rooms.map(r=>'<div class="tile click" data-act="edit-room" data-id="'+r.id+'"><span class="roomtag">'+esc(r.short||r.name)+'</span><div class="grow"><div class="t">'+esc(r.name)+'</div><div class="s">'+roomDesc(r)+'</div></div><div class="ctrl"><b class="num" style="font-size:.88rem">'+priceLabel(r)+'</b><span class="pen-r">'+PEN_SVG+'</span></div></div>').join("") : '<div class="empty">Aucune chambre.</div>';
+  h += sec("clean","clean","Chambres et tarifs",-1,(S.canWrite?'<button class="btn sm ghost" data-act="new-room">+ Chambre</button>':''), roomTiles);
+  h += '<section class="sec" style="--sc:var(--accent)"><div class="sh"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><h3>Paramètres</h3></div><div class="setrow">'
+     + '<button class="setbtn" data-act="settings"><b>Maison et services en plus</b><span>Adresse, heures, Wi-Fi, consignes, services</span></button>'
+     + (S.canWrite?'<button class="setbtn danger" data-act="reset"><b>Remettre à zéro</b><span>Effacer réservations, clients, dépenses, photos</span></button>':'')
+     + '</div></section>';
   return h;
 }
 
