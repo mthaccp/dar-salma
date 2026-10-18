@@ -379,12 +379,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=39"></script>
+<script src="firebase-config.js?v=40"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "39";
+const APP_VERSION = "40";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -715,8 +715,9 @@ function vClients(){
   h += '<div class="row"><input class="search" id="clientQ" type="search" placeholder="Rechercher un nom, un téléphone…" value="'+esc(S.clientQ)+'"></div>';
   h += '<div class="list">'+(list.length?list.map(c=>{
     const st = S.bookings.filter(b=>b.clientId===c.id && b.status!=="annulee");
+    const polMissing = st.filter(b=>b.checkOut>=today() && !policeReady(b)).length;
     const n = st.reduce((s,b)=>s+nights(b.checkIn,b.checkOut),0);
-    return '<div class="item click" data-act="edit-client" data-id="'+c.id+'"><div class="grow"><div class="t">'+esc(c.name)+(c.example?' <span class="pill ex">exemple</span>':'')+'</div><div class="s">'+[c.phone,c.nationality].filter(Boolean).map(esc).join(" · ")+'</div></div><span class="pill info num">'+st.length+' séjour'+(st.length>1?'s':'')+' · '+n+' n.</span></div>';
+    return '<div class="item click" data-act="edit-client" data-id="'+c.id+'"><div class="grow"><div class="t">'+esc(c.name)+(c.example?' <span class="pill ex">exemple</span>':'')+'</div><div class="s">'+[c.phone,c.nationality].filter(Boolean).map(esc).join(" · ")+(polMissing?' · <span style="color:var(--bad);font-weight:600">fiche de police à remplir</span>':'')+'</div></div><span class="pill info num">'+st.length+' séjour'+(st.length>1?'s':'')+' · '+n+' n.</span></div>';
   }).join(""):'<div class="empty">'+(q?'Aucun client ne correspond.':'Aucun client. Ils s\'ajoutent aussi depuis une réservation.')+'</div>')+'</div>';
   return h;
 }
@@ -1201,9 +1202,13 @@ function clientSheet(c){
     + '<label>Pièce d\'identité (type et numéro)<input id="c_id" value="'+esc(c.idDoc)+'" placeholder="Ex. Passeport 12AB34567"></label>'
     + '<label>Notes<textarea id="c_notes" rows="2" placeholder="Préférences, allergies, habitué…">'+esc(c.notes)+'</textarea></label>'
     + (stays.length?'<div><h3>Séjours</h3><div class="list">'+stays.map(b=>bookingItem(b)).join("")+'</div></div>':'')
+    + (stays.filter(b=>b.status!=="annulee").length?'<div><h3>Fiches de police</h3><div class="list" id="c_police">'+stays.filter(b=>b.status!=="annulee").sort((x,y)=>y.checkIn.localeCompare(x.checkIn)).map(b=>'<div class="item"><div class="grow"><div class="t">'+fmtD(b.checkIn)+' → '+fmtD(b.checkOut)+' · '+esc(room(b.roomId)?.name||"")+'</div><div class="s">'+(policeReady(b)?'<span style="color:var(--ok);font-weight:600">✓ Remplie</span> · '+(b.travelers||[]).length+' voyageur(s)':'<span style="color:var(--bad);font-weight:600">À remplir</span>')+'</div></div><div class="ctrl"><button type="button" class="btn sm" data-pol="'+b.id+'">'+(policeReady(b)?'Modifier':'Remplir')+'</button>'+(policeReady(b)?'<button type="button" class="btn sm" data-polp="'+b.id+'">Imprimer</button>':'')+'</div></div>').join("")+'</div></div>':'')
     + (!isNew?'<div><h3>Pièces d\'identité</h3><div class="pics" id="c_pics"><span class="s" style="color:var(--muted);font-size:.85rem">Chargement…</span></div></div>':'')
     + '<div id="c_err"></div><div class="row spread"><div>'+(!isNew?'<button type="button" class="btn sm danger" id="c_del"'+dis()+'>Supprimer</button>':'')+'</div><button class="btn primary" type="submit"'+dis()+'>Enregistrer</button></div></form>', sh=>{
     const g = id => $("#"+id, sh);
+    if(g("c_police")) g("c_police").addEventListener("click", e=>{ const a=e.target.closest("[data-pol]"), pr=e.target.closest("[data-polp]");
+      if(a){ const bk=S.bookings.find(x=>x.id===a.dataset.pol); if(bk) policeSheet(bk); }
+      if(pr){ const bk=S.bookings.find(x=>x.id===pr.dataset.polp); if(bk) printFiches([bk]); } });
     if(g("c_pics")) loadPieces("clientId", c.id).then(list=>{ const el=g("c_pics"); if(!el) return; el.innerHTML = list.length ? list.map((p,i)=>'<div class="pic" data-i="'+i+'" role="button" tabindex="0" aria-label="Voir la photo"><img src="'+p.data+'" alt=""></div>').join("") : '<span class="s" style="color:var(--muted);font-size:.85rem">Aucune photo. Ajoutez-les depuis une réservation.</span>'; el.addEventListener("click", e=>{ const d=e.target.closest("[data-i]"); if(d) viewPhoto(list[Number(d.dataset.i)].data); }); });
     if(g("c_del")) armDelete(g("c_del"), async()=>{ if(stays.length){ g("c_err").innerHTML='<div class="note warn">Ce client a des réservations. Supprimez-les d\'abord.</div>'; return; } if(await remove("clients",c.id)){ closeSheet(); toast("Client supprimé"); } });
     g("cf").addEventListener("submit", async e=>{ e.preventDefault();
