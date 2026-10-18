@@ -195,6 +195,14 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.88
 .tbl{overflow-x:auto;margin-top:8px}.tbl table{border-collapse:collapse;width:100%;font-size:.85rem;min-width:520px}
 .tbl th,.tbl td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--line)}.tbl th:first-child,.tbl td:first-child{text-align:left}
 .tbl th{color:var(--muted);font-weight:600}
+.step{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:4px 6px}
+.step .pp{width:20px;height:20px;fill:none;stroke:var(--accent);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none;margin-left:2px}
+.step .sb{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--accent);font-size:1.15rem;font-weight:700;line-height:1;cursor:pointer;flex:none;padding:0}
+.step .sb:active{background:var(--accent-soft)}
+.f .step input{border:none;background:transparent;text-align:center;font-weight:700;font-size:1rem;padding:6px 0;min-width:0;width:100%;-moz-appearance:textfield}
+.f .step input::-webkit-outer-spin-button,.f .step input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.f .step input:focus{outline:none}
+.step:focus-within{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
 .pics{display:flex;flex-wrap:wrap;gap:8px}
 .pic{position:relative;width:84px;height:84px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--sunk);cursor:zoom-in;padding:0}
 .pic img{width:100%;height:100%;object-fit:cover;display:block}
@@ -247,12 +255,12 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.88
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=17"></script>
+<script src="firebase-config.js?v=18"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "17";
+const APP_VERSION = "18";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -668,7 +676,7 @@ function bookingSheet(b){
   const html = '<form class="f" id="bf"><div class="row spread"><h2>'+(isNew?'Nouvelle réservation':'Réservation')+'</h2><button type="button" class="btn ghost" data-act="close">Fermer</button></div>'
    + '<label>Client<select id="b_client"><option value="">— Choisir —</option>'+opt("__new","+ Nouveau client",b.clientId?"":"__new")+S.clients.map(c=>opt(c.id,c.name+(c.phone?" · "+c.phone:""),b.clientId)).join("")+'</select></label>'
    + '<div id="newClient" class="g2"><label>Nom complet<input id="nc_name" autocomplete="off"></label><label>Téléphone<input id="nc_phone" type="tel"></label></div>'
-   + '<div class="g2"><label>Chambre<select id="b_room">'+S.rooms.map(r=>opt(r.id,r.wholeHouse?r.name+" (toutes les chambres)":r.name,b.roomId)).join("")+'</select></label><label>Personnes<input id="b_guests" type="number" min="1" value="'+(b.guests||1)+'"></label></div>'
+   + '<div class="g2"><label>Chambre<select id="b_room">'+S.rooms.map(r=>opt(r.id,r.wholeHouse?r.name+" (toutes les chambres)":r.name,b.roomId)).join("")+'</select></label><label>Personnes<span class="step"><svg class="pp" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.5a3 3 0 0 1 0 5.6M17.5 13.5a5 5 0 0 1 3 4.5"/></svg><button type="button" class="sb" data-step="-1" aria-label="Une personne de moins">−</button><input id="b_guests" type="number" min="1" max="30" inputmode="numeric" value="'+(b.guests||1)+'"><button type="button" class="sb" data-step="1" aria-label="Une personne de plus">+</button></span></label></div>'
    + '<label style="display:flex;align-items:center;gap:8px;color:var(--fg)"><input id="b_baby" type="checkbox" style="width:auto"'+(b.babyBed?' checked':'')+'> Ajouter un lit bébé</label>'
    + '<div class="g2"><label>Arrivée<input id="b_in" type="date" value="'+b.checkIn+'"></label><label>Départ<input id="b_out" type="date" value="'+b.checkOut+'"></label></div>'
    + '<div class="g2"><label><span id="b_price_l">Prix par nuit (DT)</span><input id="b_price" type="number" min="0" step="0.5" value="'+(b.pricePerNight||0)+'"></label><label>Source<select id="b_source">'+["Direct","Téléphone","Booking.com","Airbnb","Facebook / Instagram","Bouche à oreille","Autre"].map(s=>opt(s,s,b.source)).join("")+'</select></label></div>'
@@ -683,7 +691,7 @@ function bookingSheet(b){
     const g = id => $("#"+id, sh);
     let mode = b.priceMode || (isNew ? roomMode(room(b.roomId)) : "nuit");
     const sync = () => {
-      g("b_price_l").textContent = mode==="personne" ? "Prix par personne / nuit (DT)" : "Prix par nuit (DT)";
+      g("b_price_l").textContent = mode==="personne" ? "Prix / pers. / nuit (DT)" : "Prix par nuit (DT)";
       g("newClient").hidden = g("b_client").value!=="__new";
       const n = nights(g("b_in").value||today(), g("b_out").value||today());
       const gu0 = Number(g("b_guests").value)||1, pr0 = Number(g("b_price").value)||0;
@@ -703,6 +711,7 @@ function bookingSheet(b){
     g("b_in").addEventListener("change",()=>{ if(g("b_out").value<=g("b_in").value) g("b_out").value=addDays(g("b_in").value,1); sync(); });
     ["b_out","b_price","b_guests","b_client"].forEach(id=>g(id).addEventListener("input",sync));
     g("b_baby").addEventListener("change",sync);
+    sh.querySelectorAll("[data-step]").forEach(btn=>btn.addEventListener("click",()=>{ const i=g("b_guests"); i.value=Math.max(1,Math.min(30,(Number(i.value)||1)+Number(btn.dataset.step))); sync(); }));
     g("b_client").addEventListener("change",sync);
     g("p_add").addEventListener("click",()=>{ const a=Number(g("p_amt").value); if(!(a>0)){ g("p_amt").focus(); return; } b.payments=(b.payments||[]).concat([{amount:a,method:g("p_meth").value,date:g("p_date").value||today()}]); g("p_amt").value=""; sync(); });
     g("b_pays").addEventListener("click",e=>{ const i=e.target.dataset.rmpay; if(i!=null){ b.payments.splice(Number(i),1); sync(); } });
@@ -803,13 +812,13 @@ function roomSheet(r){
   openSheet('<form class="f" id="rf"><div class="row spread"><h2>'+(isNew?'Nouvelle chambre':'Chambre')+'</h2><button type="button" class="btn ghost" data-act="close">Fermer</button></div>'
     + '<div class="g2"><label>Nom<input id="r_name" value="'+esc(r.name)+'"></label><label>Repère court<input id="r_short" maxlength="4" value="'+esc(r.short)+'"></label></div>'
     + (r.wholeHouse?'':'<label>Type de tarif<select id="r_mode">'+opt("personne","Par personne et par nuit",roomMode(r))+opt("nuit","Par nuit (chambre entière)",roomMode(r))+'</select></label>')
-    + '<div class="g2"><label><span id="r_price_l">'+(roomMode(r)==="personne"?"Prix par personne / nuit (DT)":"Prix par nuit (DT)")+'</span><input id="r_price" type="number" min="0" step="0.5" value="'+esc(r.price)+'"></label><label>Capacité (pers.)<input id="r_cap" type="number" min="1" value="'+esc(r.capacity)+'"></label></div>'
+    + '<div class="g2"><label><span id="r_price_l">'+(roomMode(r)==="personne"?"Prix / pers. / nuit (DT)":"Prix par nuit (DT)")+'</span><input id="r_price" type="number" min="0" step="0.5" value="'+esc(r.price)+'"></label><label>Capacité (pers.)<input id="r_cap" type="number" min="1" value="'+esc(r.capacity)+'"></label></div>'
     + '<div class="g2"><label>Lits<select id="r_beds">'+opt("double","Lit double",r.beds)+opt("separes","2 lits séparés",r.beds)+opt("autre","Autre",r.beds)+'</select></label><label style="display:flex;align-items:center;gap:8px;color:var(--fg);align-self:end;padding-bottom:9px"><input id="r_baby" type="checkbox" style="width:auto"'+(r.babyBed?' checked':'')+'> Lit bébé possible</label></div>'
     + '<label>État<select id="r_status">'+opt("propre","Propre",r.status)+opt("a_nettoyer","À nettoyer",r.status)+opt("reparation","Réparation",r.status)+'</select></label>'
     + '<label>Informations<textarea id="r_note" rows="3" placeholder="Ex. vue sur le patio, salle de bain privée, climatisation, étage">'+esc(r.note)+'</textarea></label>'
     + '<div id="r_err"></div><div class="row spread"><div>'+(!isNew?'<button type="button" class="btn sm danger" id="r_del"'+dis()+'>Supprimer</button>':'')+'</div><button class="btn primary" type="submit"'+dis()+'>Enregistrer</button></div></form>', sh=>{
     const g=id=>$("#"+id,sh);
-    if(g("r_mode")) g("r_mode").addEventListener("change",()=>{ g("r_price_l").textContent = g("r_mode").value==="personne" ? "Prix par personne / nuit (DT)" : "Prix par nuit (DT)"; });
+    if(g("r_mode")) g("r_mode").addEventListener("change",()=>{ g("r_price_l").textContent = g("r_mode").value==="personne" ? "Prix / pers. / nuit (DT)" : "Prix par nuit (DT)"; });
     if(g("r_del")) armDelete(g("r_del"), async()=>{ if(S.bookings.some(b=>b.roomId===r.id && b.status!=="annulee")){ g("r_err").innerHTML='<div class="note warn">Cette chambre a des réservations. Déplacez-les ou supprimez-les d\'abord.</div>'; return; } if(await remove("rooms",r.id)){ closeSheet(); toast("Chambre supprimée"); } });
     g("rf").addEventListener("submit", async e=>{ e.preventDefault(); const name=g("r_name").value.trim(); if(!name){ g("r_err").innerHTML='<div class="note bad">Donnez un nom à la chambre.</div>'; return; }
       Object.assign(r,{name, short:g("r_short").value.trim()||name.slice(0,3), price:Number(g("r_price").value)||0, capacity:Number(g("r_cap").value)||1, priceMode: g("r_mode") ? g("r_mode").value : "nuit", beds:g("r_beds").value, babyBed:g("r_baby").checked, status:g("r_status").value, note:g("r_note").value.trim()}); delete r.example;
