@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Dar Salma</title>
 <meta name="theme-color" content="#1e2f62">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -212,11 +215,22 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.88
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=9"></script>
+<script src="firebase-config.js?v=10"></script>
 
 <script>
 (function(){
 "use strict";
+const APP_VERSION = "10";
+async function checkUpdate(){
+  try{
+    const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
+    if(!r.ok) return; const v = (await r.json()).version;
+    if(v && v!==APP_VERSION){ const k="ds_reloaded_"+v; let done=false; try{done=sessionStorage.getItem(k)}catch(e){}
+      if(!done){ try{sessionStorage.setItem(k,"1")}catch(e){} location.replace(location.pathname+"?v="+v); } }
+  }catch(e){}
+}
+checkUpdate();
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") checkUpdate(); });
 // ---------- helpers ----------
 const $ = (s, el=document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

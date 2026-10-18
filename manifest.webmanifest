@@ -2,7 +2,7 @@
   "name": "Dar Salma – Maison d'hôtes",
   "short_name": "Dar Salma",
   "lang": "fr",
-  "start_url": "./",
+  "start_url": "./?app=1",
   "scope": "./",
   "display": "standalone",
   "background_color": "#1e2f62",
