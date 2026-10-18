@@ -383,12 +383,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=41"></script>
+<script src="firebase-config.js?v=42"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "41";
+const APP_VERSION = "42";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -726,7 +726,7 @@ function vPolice(){
   h += '<input class="search" id="polQ" type="search" placeholder="Rechercher un nom, un n° de passeport…" value="'+esc(S.polQ||"")+'">';
   const rows = list.map(b=>{ const c=client(b.clientId), ok=policeReady(b), tr=b.travelers||[];
     const who = ok ? tr.map(x=>[x.prenom,(x.nom||"").toUpperCase()].filter(Boolean).join(" ")).join(", ") : esc(c?c.name:"");
-    return '<div class="item"><span class="roomtag">'+esc(room(b.roomId)?.short||"?")+'</span><div class="grow"><div class="r1"><span class="t">'+esc(c?c.name:"Client")+'</span>'+(ok?'<span class="pill ok">✓ Remplie</span>':'<span class="pill bad">À remplir</span>')+'</div><div class="s">'+fmtD(b.checkIn)+' → '+fmtD(b.checkOut)+' · '+(b.adults!=null?b.adults:(b.guests||1))+' adulte(s)'+(ok?' · '+esc(who):'')+'</div></div><div class="ctrl"><button class="btn sm'+(ok?'':' primary')+'" data-act="pol-edit" data-id="'+b.id+'">'+(ok?'Modifier':'Remplir')+'</button>'+(ok?'<button class="btn sm" data-act="pol-print" data-id="'+b.id+'">Imprimer</button>':'')+'</div></div>'; }).join("");
+    return '<div class="item"><span class="roomtag">'+esc(room(b.roomId)?.short||"?")+'</span><div class="grow"><div class="r1"><span class="t">'+esc(c?c.name:"Client")+'</span>'+(ok?'<span class="pill ok">✓ Remplie</span>':'<span class="pill bad">À remplir</span>')+'</div><div class="s">'+fmtD(b.policeIn||b.checkIn)+' → '+fmtD(b.policeOut||b.checkOut)+' · '+(b.adults!=null?b.adults:(b.guests||1))+' adulte(s)'+(ok?' · '+esc(who):'')+'</div></div><div class="ctrl"><button class="btn sm'+(ok?'':' primary')+'" data-act="pol-edit" data-id="'+b.id+'">'+(ok?'Modifier':'Remplir')+'</button>'+(ok?'<button class="btn sm" data-act="pol-print" data-id="'+b.id+'">Imprimer</button>':'')+'</div></div>'; }).join("");
   const printable = list.filter(policeReady);
   h += sec("due","card","Fiches de police",list.length,(printable.length>1?'<button class="btn sm ghost" data-act="pol-print-list">Tout imprimer ('+printable.length+')</button>':''), rows || '<div class="empty">'+(f==="todo"?'Toutes les fiches sont remplies.':'Aucune fiche dans cette liste.')+'</div>');
   return h;
@@ -960,7 +960,7 @@ function ficheHtml(b, t, i, n){
     + '<table>'+row("Nom",(t.nom||"").toUpperCase())+row("Prénom",t.prenom)+row("Date et lieu de naissance",[fdate(t.naissance),t.lieuNaissance].filter(Boolean).join(" à "))
     + row("Nationalité",t.nationalite)+row("Profession",t.profession)+row("Domicile habituel",t.adresse)
     + row("Pièce d'identité",[t.pieceType,t.pieceNum].filter(Boolean).join(" n° "))+row("Délivrée le / à",[fdate(t.pieceDate),t.pieceLieu].filter(Boolean).join(" à "))
-    + row("Date d'arrivée",fdate(b.checkIn)+(b.arrivedAt?" à "+hhmm(b.arrivedAt):""))+row("Date de départ prévue",fdate(b.checkOut))
+    + row("Date d'arrivée",fdate(b.policeIn||b.checkIn)+((b.policeTime||(b.arrivedAt&&hhmm(b.arrivedAt)))?" à "+(b.policeTime||hhmm(b.arrivedAt)):""))+row("Date de départ",fdate(b.policeOut||b.checkOut))
     + row("Chambre",r?r.name:"")+row("Venant de",b.provenance)+row("Se rendant à",b.destination)
     + row("Accompagné de", (b.children?b.children+" enfant(s) de moins de 12 ans":"")+(b.babyBed?(b.children?", ":"")+"bébé":""))
     + '</table><div class="fs"><div>Signature du voyageur</div><div>Cachet et signature de l\'hôte</div></div></div>';
@@ -989,6 +989,8 @@ function policeSheet(b0, after){
     + TF.map(([k,l,ty])=>'<label>'+l+(ty==="select"?'<select data-ti="'+i+'" data-tk="'+k+'">'+pieceOpt(t[k])+'</select>':'<input data-ti="'+i+'" data-tk="'+k+'" type="'+ty+'" value="'+esc(t[k]||"")+'"'+(k==="nom"?' autocapitalize="characters"':'')+'>')+'</label>').join("")+'</div></div>').join("");
   openSheet('<form class="f" id="pf"><div class="row spread"><h2>Fiche de police</h2><button type="button" class="btn ghost" data-act="close">Fermer</button></div>'
     + '<p style="margin:0;color:var(--muted);font-size:.88rem">'+esc(client(b.clientId)?.name||"")+' · '+fmtD(b.checkIn)+' → '+fmtD(b.checkOut)+' · '+esc(room(b.roomId)?.name||"")+'. Une fiche est imprimée par adulte, avec les copies des pièces d\'identité de la réservation.</p>'
+    + '<div class="g2"><label>Date d\'arrivée<input id="p_in" type="date" value="'+esc(b.policeIn||b.checkIn)+'"></label><label>Heure d\'arrivée<input id="p_time" type="time" value="'+esc(b.policeTime||(b.arrivedAt?hhmm(b.arrivedAt):(b.arrivalTime||"")))+'"></label></div>'
+    + '<div class="g2"><label>Date de départ<input id="p_out" type="date" value="'+esc(b.policeOut||b.checkOut)+'"></label><span></span></div>'
     + '<div class="g2"><label>Venant de (ville, pays)<input id="p_from" value="'+esc(b.provenance||"")+'"></label><label>Se rendant à<input id="p_to" value="'+esc(b.destination||"")+'"></label></div>'
     + '<div id="p_list" style="display:grid;gap:14px"></div>'
     + (S.canWrite?'<button type="button" class="btn sm" id="p_add" style="justify-self:start">+ Ajouter un voyageur</button>':'')
@@ -1000,15 +1002,16 @@ function policeSheet(b0, after){
     g("p_list").addEventListener("change", e=>{ const i=e.target.dataset.ti; if(i==null) return; list[Number(i)][e.target.dataset.tk]=e.target.value; });
     g("p_list").addEventListener("click", e=>{ const i=e.target.dataset.trm; if(i!=null){ list.splice(Number(i),1); paint(); } });
     if(g("p_add")) g("p_add").addEventListener("click", ()=>{ list.push({nom:"",prenom:"",pieceType:"Passeport"}); paint(); });
-    const collect = () => { b.travelers = list.map(t=>{ const o={}; TF.forEach(([k])=>o[k]=String(t[k]||"").trim()); return o; }); b.provenance=g("p_from").value.trim(); b.destination=g("p_to").value.trim(); };
+    const collect = () => { b.travelers = list.map(t=>{ const o={}; TF.forEach(([k])=>o[k]=String(t[k]||"").trim()); return o; }); b.provenance=g("p_from").value.trim(); b.destination=g("p_to").value.trim(); b.policeIn=g("p_in").value||b.checkIn; b.policeOut=g("p_out").value||b.checkOut; b.policeTime=g("p_time").value||""; };
     const persist = async () => {
       collect();
-      try{ await S.db.collection("bookings").doc(b.id).update({travelers:b.travelers, provenance:b.provenance, destination:b.destination});
+      try{ await S.db.collection("bookings").doc(b.id).update({travelers:b.travelers, provenance:b.provenance, destination:b.destination, policeIn:b.policeIn, policeOut:b.policeOut, policeTime:b.policeTime});
         const m=b.travelers[0], c=client(b.clientId);
         if(c && m){ const upd={}; if(m.nationalite && !c.nationality) upd.nationality=m.nationalite; const id=[m.pieceType,m.pieceNum].filter(Boolean).join(" "); if(m.pieceNum && c.idDoc!==id) upd.idDoc=id; if(Object.keys(upd).length) await S.db.collection("clients").doc(c.id).update(upd); }
         return true; }catch(x){ g("p_err").innerHTML='<div class="note bad">Enregistrement impossible. Vérifiez la connexion.</div>'; return false; }
     };
-    g("p_print").addEventListener("click", async ()=>{ if(S.canWrite) await persist(); else collect(); printFiches([b]); });
+    g("p_in").addEventListener("change",()=>{ if(g("p_out").value && g("p_out").value<=g("p_in").value) g("p_out").value=addDays(g("p_in").value,1); });
+    g("p_print").addEventListener("click", async ()=>{ if(g("p_out").value && g("p_in").value && g("p_out").value<g("p_in").value){ g("p_err").innerHTML='<div class="note bad">La date de départ doit être après l\'arrivée.</div>'; return; } if(S.canWrite) await persist(); else collect(); printFiches([b]); });
     g("pf").addEventListener("submit", async e=>{ e.preventDefault(); if(await persist()){ closeSheet(); toast("Fiche de police enregistrée"); if(after) after(); } });
   });
 }
