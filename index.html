@@ -187,6 +187,16 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.88
 .tbl{overflow-x:auto;margin-top:8px}.tbl table{border-collapse:collapse;width:100%;font-size:.85rem;min-width:520px}
 .tbl th,.tbl td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--line)}.tbl th:first-child,.tbl td:first-child{text-align:left}
 .tbl th{color:var(--muted);font-weight:600}
+.pics{display:flex;flex-wrap:wrap;gap:8px}
+.pic{position:relative;width:84px;height:84px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--sunk);cursor:zoom-in;padding:0}
+.pic img{width:100%;height:100%;object-fit:cover;display:block}
+.pic .x{position:absolute;top:3px;right:3px;width:24px;height:24px;border-radius:50%;border:none;background:rgba(0,0,0,.6);color:#fff;font-size:15px;line-height:24px;cursor:pointer;padding:0}
+.pic .nw{position:absolute;left:3px;bottom:3px;background:var(--jasmin);color:#fff;font-size:.65rem;font-weight:700;padding:1px 6px;border-radius:999px}
+.upl,.f label.upl{display:inline-flex;align-items:center;gap:6px;cursor:pointer;color:var(--fg);font-size:.85rem;font-weight:600}
+.upl svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.viewer{position:fixed;inset:0;z-index:90;background:rgba(5,8,15,.92);display:grid;place-items:center;padding:calc(56px + env(safe-area-inset-top,0px)) 12px calc(20px + env(safe-area-inset-bottom,0px))}
+.viewer img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px}
+.viewer button{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));right:12px}
 .tip{position:fixed;z-index:80;background:var(--fg);color:var(--bg);font-size:.8rem;font-weight:600;padding:6px 10px;border-radius:8px;pointer-events:none;max-width:240px}
 .out{background:transparent;color:var(--on-navy);border-color:rgba(243,239,230,.35);display:inline-flex;align-items:center;gap:6px;flex:none}
 .out .lo{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:none}
@@ -229,12 +239,12 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.88
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=14"></script>
+<script src="firebase-config.js?v=15"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "14";
+const APP_VERSION = "15";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -603,6 +613,31 @@ function vAna(){
   return h;
 }
 
+// ---------- pièces d'identité ----------
+async function compressImage(file){
+  const url = URL.createObjectURL(file);
+  try{
+    const img = new Image(); await new Promise((res,rej)=>{ img.onload=res; img.onerror=rej; img.src=url; });
+    const max=1400, k=Math.min(1, max/Math.max(img.naturalWidth,img.naturalHeight));
+    const c=document.createElement("canvas"); c.width=Math.round(img.naturalWidth*k); c.height=Math.round(img.naturalHeight*k);
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    let q=0.72, d=c.toDataURL("image/jpeg",q); while(d.length>650000 && q>0.35){ q-=0.08; d=c.toDataURL("image/jpeg",q); }
+    return d;
+  } finally { URL.revokeObjectURL(url); }
+}
+async function loadPieces(field, value){
+  if(!S.db) return [];
+  try{ const snap = await S.db.collection("pieces").where(field,"==",value).get();
+    return snap.docs.map(d=>({id:d.id, ...d.data(), saved:true})).sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt))); }
+  catch(e){ return []; }
+}
+function viewPhoto(src){
+  const v=document.createElement("div"); v.className="viewer"; v.innerHTML='<img alt="Pièce d\'identité"><button type="button" class="btn">Fermer</button>';
+  v.querySelector("img").src=src; v.addEventListener("click", e=>{ if(e.target.tagName!=="IMG") v.remove(); }); document.body.appendChild(v);
+}
+const CAM_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+const UP_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v4h16v-4"/></svg>';
+
 // ---------- sheets (forms) ----------
 function openSheet(html, onMount){
   sheetOpen = true;
@@ -627,6 +662,8 @@ function bookingSheet(b){
    + '<div id="b_warn"></div><div class="summary" id="b_sum"></div>'
    + '<div><h3>Paiements</h3><div id="b_pays"></div><div class="g2" style="margin-top:8px"><label>Montant (DT)<input id="p_amt" type="number" min="0" step="0.5" placeholder="0"></label><label>Mode<select id="p_meth">'+["Espèces","Virement","Carte","Chèque","Plateforme"].map(s=>opt(s,s)).join("")+'</select></label></div><div class="row" style="margin-top:8px"><input id="p_date" type="date" value="'+today()+'" style="flex:1"><button type="button" class="btn sm" id="p_add"'+dis()+'>+ Ajouter le paiement</button></div></div>'
    + '<label>Notes<textarea id="b_notes" rows="2" placeholder="Heure d\'arrivée, demande particulière…">'+esc(b.notes)+'</textarea></label>'
+   + '<div><h3>Pièces d\'identité (passeport, CIN)</h3><div class="pics" id="b_pics"><span class="s" style="color:var(--muted);font-size:.85rem">Chargement…</span></div>'
+   + (S.canWrite?'<div class="row" style="margin-top:8px"><label class="btn sm upl">'+CAM_SVG+'Prendre une photo<input type="file" accept="image/*" capture="environment" id="b_cam" hidden></label><label class="btn sm upl">'+UP_SVG+'Choisir une photo<input type="file" accept="image/*" multiple id="b_file" hidden></label></div>':'')+'</div>'
    + '<div id="b_err"></div>'
    + '<div class="row spread"><div class="row">'+(!isNew?(b.status==="annulee"?'<button type="button" class="btn sm" id="b_restore"'+dis()+'>Rétablir</button>':'<button type="button" class="btn sm" id="b_cancel"'+dis()+'>Annuler la réservation</button>')+'<button type="button" class="btn sm danger" id="b_del"'+dis()+'>Supprimer</button>':'')+'</div><button class="btn primary" type="submit"'+dis()+'>Enregistrer</button></div></form>';
   openSheet(html, sh=>{
@@ -655,7 +692,31 @@ function bookingSheet(b){
     g("b_pays").addEventListener("click",e=>{ const i=e.target.dataset.rmpay; if(i!=null){ b.payments.splice(Number(i),1); sync(); } });
     if(g("b_cancel")) g("b_cancel").addEventListener("click", async()=>{ b.status="annulee"; if(await save("bookings",b.id,strip(b))){ closeSheet(); toast("Réservation annulée"); } });
     if(g("b_restore")) g("b_restore").addEventListener("click", async()=>{ const cl=conflicts(b.roomId,b.checkIn,b.checkOut,b.id); if(cl.length){ g("b_err").innerHTML='<div class="note bad">Impossible de rétablir : la chambre est prise entre-temps du '+fmtD(cl[0].checkIn)+' au '+fmtD(cl[0].checkOut)+'.</div>'; return; } b.status="confirmee"; if(await save("bookings",b.id,strip(b))){ closeSheet(); toast("Réservation rétablie"); } });
-    if(g("b_del")) armDelete(g("b_del"), async()=>{ if(await remove("bookings",b.id)){ closeSheet(); toast("Réservation supprimée"); } });
+    let pics = [];
+    const drawPics = () => {
+      const vis = pics.filter(p=>!p.del);
+      g("b_pics").innerHTML = vis.length ? vis.map((p,i)=>'<div class="pic" data-view="'+pics.indexOf(p)+'" role="button" tabindex="0" aria-label="Voir la photo"><img src="'+p.data+'" alt="">'+(p.saved?'':'<span class="nw">À enregistrer</span>')+(S.canWrite?'<button type="button" class="x" data-rm="'+pics.indexOf(p)+'" aria-label="Retirer la photo">×</button>':'')+'</div>').join("") : '<span class="s" style="color:var(--muted);font-size:.85rem">Aucune photo pour l\'instant.</span>';
+    };
+    if(isNew) drawPics(); else loadPieces("bookingId", b.id).then(list=>{ pics = list.concat(pics); if(g("b_pics")) drawPics(); });
+    g("b_pics").addEventListener("click", e=>{
+      const rm=e.target.closest("[data-rm]"); if(rm){ e.stopPropagation(); const p=pics[Number(rm.dataset.rm)]; if(p.saved) p.del=true; else pics.splice(Number(rm.dataset.rm),1); drawPics(); return; }
+      const v=e.target.closest("[data-view]"); if(v) viewPhoto(pics[Number(v.dataset.view)].data);
+    });
+    const addFiles = async files => { for(const f of files){ try{ const d=await compressImage(f); pics.push({id:uid(), data:d, saved:false}); drawPics(); }catch(x){ toast("Photo illisible, réessayez"); } } };
+    if(g("b_cam")) g("b_cam").addEventListener("change", e=>{ addFiles([...e.target.files]); e.target.value=""; });
+    if(g("b_file")) g("b_file").addEventListener("change", e=>{ addFiles([...e.target.files]); e.target.value=""; });
+    const savePics = async (cid) => {
+      let ok=true;
+      for(const p of pics){
+        try{
+          if(p.del && p.saved){ await S.db.collection("pieces").doc(p.id).delete(); }
+          else if(!p.saved){ await S.db.collection("pieces").doc(p.id).set({bookingId:b.id, clientId:cid, data:p.data, createdAt:new Date().toISOString()}); p.saved=true; }
+          else if(p.clientId!==cid){ await S.db.collection("pieces").doc(p.id).update({clientId:cid}); }
+        }catch(x){ ok=false; }
+      }
+      if(!ok) toast("Une photo n'a pas pu être enregistrée");
+    };
+    if(g("b_del")) armDelete(g("b_del"), async()=>{ if(await remove("bookings",b.id)){ for(const p of pics.filter(p=>p.saved)) await remove("pieces",p.id); closeSheet(); toast("Réservation supprimée"); } });
     g("bf").addEventListener("submit", async e=>{
       e.preventDefault();
       const err = m => g("b_err").innerHTML='<div class="note bad">'+m+'</div>';
@@ -672,7 +733,7 @@ function bookingSheet(b){
         if(clash.length && b.status!=="annulee"){ const x=clash[0]; return err((isHouse(rid)?"La maison entière n'est pas libre : "+esc(room(x.roomId)?.name||"une chambre"):esc(room(x.roomId)?.name||"Cette chambre"))+" est déjà réservée du "+fmtD(x.checkIn)+" au "+fmtD(x.checkOut)+" ("+esc(client(x.clientId)?.name||"")+"). Choisissez une autre chambre ou d'autres dates."); } }
       Object.assign(b,{clientId:cid, roomId:g("b_room").value, guests:Number(g("b_guests").value)||1, babyBed:g("b_baby").checked, checkIn:g("b_in").value, checkOut:g("b_out").value, pricePerNight:Number(g("b_price").value)||0, source:g("b_source").value, notes:g("b_notes").value.trim()});
       b.total = nights(b.checkIn,b.checkOut)*b.pricePerNight; delete b.example;
-      if(await save("bookings",b.id,strip(b))){ closeSheet(); toast("Réservation enregistrée"); }
+      if(await save("bookings",b.id,strip(b))){ const n=pics.filter(p=>!p.saved||p.del).length; if(n) toast("Enregistrement des photos…"); await savePics(cid); closeSheet(); toast("Réservation enregistrée"); }
     });
     sync();
   });
@@ -687,8 +748,10 @@ function clientSheet(c){
     + '<label>Pièce d\'identité (CIN / passeport)<input id="c_id" value="'+esc(c.idDoc)+'" placeholder="Type et numéro"></label>'
     + '<label>Notes<textarea id="c_notes" rows="2" placeholder="Préférences, allergies, habitué…">'+esc(c.notes)+'</textarea></label>'
     + (stays.length?'<div><h3>Séjours</h3><div class="list">'+stays.map(b=>bookingItem(b)).join("")+'</div></div>':'')
+    + (!isNew?'<div><h3>Pièces d\'identité</h3><div class="pics" id="c_pics"><span class="s" style="color:var(--muted);font-size:.85rem">Chargement…</span></div></div>':'')
     + '<div id="c_err"></div><div class="row spread"><div>'+(!isNew?'<button type="button" class="btn sm danger" id="c_del"'+dis()+'>Supprimer</button>':'')+'</div><button class="btn primary" type="submit"'+dis()+'>Enregistrer</button></div></form>', sh=>{
     const g = id => $("#"+id, sh);
+    if(g("c_pics")) loadPieces("clientId", c.id).then(list=>{ const el=g("c_pics"); if(!el) return; el.innerHTML = list.length ? list.map((p,i)=>'<div class="pic" data-i="'+i+'" role="button" tabindex="0" aria-label="Voir la photo"><img src="'+p.data+'" alt=""></div>').join("") : '<span class="s" style="color:var(--muted);font-size:.85rem">Aucune photo. Ajoutez-les depuis une réservation.</span>'; el.addEventListener("click", e=>{ const d=e.target.closest("[data-i]"); if(d) viewPhoto(list[Number(d.dataset.i)].data); }); });
     if(g("c_del")) armDelete(g("c_del"), async()=>{ if(stays.length){ g("c_err").innerHTML='<div class="note warn">Ce client a des réservations. Supprimez-les d\'abord.</div>'; return; } if(await remove("clients",c.id)){ closeSheet(); toast("Client supprimé"); } });
     g("cf").addEventListener("submit", async e=>{ e.preventDefault();
       const name=g("c_name").value.trim(); if(!name){ g("c_err").innerHTML='<div class="note bad">Indiquez le nom du client.</div>'; return; }
