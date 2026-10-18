@@ -203,6 +203,12 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.88
 .f .step input::-webkit-outer-spin-button,.f .step input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .f .step input:focus{outline:none}
 .step:focus-within{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
+.remind{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--jasmin);border-radius:var(--r);padding:12px 14px;display:grid;gap:8px}
+.remind .rh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.remind .rh svg{width:20px;height:20px;fill:none;stroke:var(--jasmin);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.remind .list{border:none}
+nav.tabs button{position:relative}
+nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge);position:absolute;top:2px;right:calc(50% - 22px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--bad);color:#fff;font-size:.68rem;font-weight:800;line-height:18px;text-align:center}
 .pics{display:flex;flex-wrap:wrap;gap:8px}
 .pic{position:relative;width:84px;height:84px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--sunk);cursor:zoom-in;padding:0}
 .pic img{width:100%;height:100%;object-fit:cover;display:block}
@@ -255,12 +261,12 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.88
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=18"></script>
+<script src="firebase-config.js?v=19"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "18";
+const APP_VERSION = "19";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -406,6 +412,7 @@ async function boot(){
 // ---------- render ----------
 function render(){
   document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-current", b.dataset.tab===S.tab?"page":"false"));
+  { const jb=document.querySelector('#tabs [data-tab="jour"]'); if(jb){ const n=S.loaded.bookings?upcomingArrivals(24).length:0; jb.dataset.badge = n?String(n):""; } }
   const m = $("#main");
   const allLoaded = ["rooms","clients","bookings","expenses"].every(k=>S.loaded[k]);
   let html = "";
@@ -435,6 +442,9 @@ function vJour(){
   const tom = addDays(t,1);
   const arrTom = activeBookings().filter(b=>b.checkIn===tom);
   let h = '<div class="row spread"><h2>'+fmtLong(t).replace(/^./,c=>c.toUpperCase())+'</h2><button class="btn primary" data-act="new-booking"'+(S.canWrite?'':' disabled')+'>+ Réservation</button></div>';
+  const soon = upcomingArrivals(24);
+  if(soon.length) h += '<div class="remind"><div class="rh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><h3 style="margin:0">Rappels · arrivées dans les 24 h</h3><span class="grow"></span><button class="btn sm ghost" data-act="ics-all">Ajouter au calendrier</button></div><div class="list">'
+     + soon.map(b=>{ const hrs=(arrivalAt(b)-Date.now())/3600e3; return bookingItem(b, '<b style="color:'+(hrs<=12?'var(--bad)':'var(--warn)')+'">Arrivée '+inHours(b)+' ('+(b.arrivalTime||"14:00")+')</b>'); }).join("")+'</div></div>';
   h += '<div class="stats"><div class="stat"><span>Chambres occupées ce soir</span><b class="num">'+occ+' / '+units().length+'</b></div>'
      + '<div class="stat"><span>Arrivées aujourd\'hui</span><b class="num">'+arr.length+'</b></div>'
      + '<div class="stat"><span>Départs aujourd\'hui</span><b class="num">'+dep.length+'</b></div>'
@@ -488,7 +498,7 @@ function vResa(){
   else if(f==="impayees") list = list.filter(b=>b.status!=="annulee" && balance(b)>0);
   else if(f==="annulees") list = list.filter(b=>b.status==="annulee");
   const seg = [["avenir","En cours et à venir"],["impayees","Impayées"],["passees","Passées"],["annulees","Annulées"]];
-  let h = '<div class="row spread"><h2>Réservations</h2><button class="btn primary" data-act="new-booking"'+(S.canWrite?'':' disabled')+'>+ Réservation</button></div>';
+  let h = '<div class="row spread"><h2>Réservations</h2><div class="row"><button class="btn sm" data-act="ics-upcoming">Rappels dans le calendrier</button><button class="btn primary" data-act="new-booking"'+(S.canWrite?'':' disabled')+'>+ Réservation</button></div></div>';
   h += '<div class="seg" role="tablist">'+seg.map(([k,l])=>'<button class="'+(k===f?'on':'')+'" data-act="resa-filter" data-f="'+k+'">'+l+'</button>').join("")+'</div>';
   h += '<div class="list">'+(list.length?list.map(b=>bookingItem(b, b.source?esc(b.source):"")).join(""):'<div class="empty">Aucune réservation dans cette liste. Touchez « + Réservation » pour en ajouter une.</div>')+'</div>';
   return h;
@@ -634,6 +644,29 @@ function vAna(){
   return h;
 }
 
+// ---------- rappels & calendrier ----------
+const arrivalAt = b => new Date(b.checkIn+"T"+(b.arrivalTime||"14:00")+":00");
+function upcomingArrivals(hours){ const now=Date.now(), lim=now+hours*3600e3; return activeBookings().filter(b=>{ const t=arrivalAt(b).getTime(); return t>now && t<=lim; }).sort((a,b)=>arrivalAt(a)-arrivalAt(b)); }
+function inHours(b){ const m=Math.max(0,Math.round((arrivalAt(b)-Date.now())/60000)); return m<60 ? "dans "+m+" min" : "dans "+Math.floor(m/60)+" h"+(m%60>=5?" "+String(m%60).padStart(2,"0"):""); }
+const icsEsc = v => String(v||"").replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\r?\n/g,"\\n");
+function icsFor(list){
+  const stamp = new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+Z$/,"Z");
+  const ev = list.map(b=>{ const c=client(b.clientId), r=room(b.roomId), d=b.checkIn.replace(/-/g,""), t=(b.arrivalTime||"14:00").replace(":","")+"00";
+    const desc = [(b.guests||1)+" personne(s)", "Séjour du "+fmtD(b.checkIn)+" au "+fmtD(b.checkOut), c&&c.phone?"Tél : "+c.phone:"", balance(b)>0?"Reste à encaisser : "+dt(balance(b)):"Payé", b.notes||""].filter(Boolean).join("\n");
+    return ["BEGIN:VEVENT","UID:"+b.id+"@darsalma","DTSTAMP:"+stamp,"DTSTART:"+d+"T"+t,"DURATION:PT1H",
+      "SUMMARY:"+icsEsc("Arrivée Dar Salma : "+(c?c.name:"client")+" · "+(r?r.name:"")),"DESCRIPTION:"+icsEsc(desc),
+      "BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEsc("Arrivée demain : "+(c?c.name:"")),"TRIGGER:-PT24H","END:VALARM",
+      "BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEsc("Arrivée dans 12 h : "+(c?c.name:"")),"TRIGGER:-PT12H","END:VALARM","END:VEVENT"].join("\r\n"); });
+  return ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Dar Salma//Gestion//FR","CALSCALE:GREGORIAN","METHOD:PUBLISH"].concat(ev,["END:VCALENDAR"]).join("\r\n");
+}
+function downloadIcs(list, name){
+  if(!list.length){ toast("Aucune arrivée à venir"); return; }
+  const blob = new Blob([icsFor(list)], {type:"text/calendar;charset=utf-8"}), url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 60000);
+  toast("Ouvrez le fichier pour l'ajouter au calendrier");
+}
+
 // ---------- pièces d'identité ----------
 async function compressImage(file){
   const url = URL.createObjectURL(file);
@@ -679,6 +712,7 @@ function bookingSheet(b){
    + '<div class="g2"><label>Chambre<select id="b_room">'+S.rooms.map(r=>opt(r.id,r.wholeHouse?r.name+" (toutes les chambres)":r.name,b.roomId)).join("")+'</select></label><label>Personnes<span class="step"><svg class="pp" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.5a3 3 0 0 1 0 5.6M17.5 13.5a5 5 0 0 1 3 4.5"/></svg><button type="button" class="sb" data-step="-1" aria-label="Une personne de moins">−</button><input id="b_guests" type="number" min="1" max="30" inputmode="numeric" value="'+(b.guests||1)+'"><button type="button" class="sb" data-step="1" aria-label="Une personne de plus">+</button></span></label></div>'
    + '<label style="display:flex;align-items:center;gap:8px;color:var(--fg)"><input id="b_baby" type="checkbox" style="width:auto"'+(b.babyBed?' checked':'')+'> Ajouter un lit bébé</label>'
    + '<div class="g2"><label>Arrivée<input id="b_in" type="date" value="'+b.checkIn+'"></label><label>Départ<input id="b_out" type="date" value="'+b.checkOut+'"></label></div>'
+   + '<div class="g2"><label>Heure d\'arrivée prévue<input id="b_time" type="time" value="'+esc(b.arrivalTime||"14:00")+'"></label>'+(!isNew&&b.status!=="annulee"?'<label>Rappels<button type="button" class="btn sm" id="b_ics" style="justify-self:start;margin-top:2px">Ajouter au calendrier</button></label>':'<span></span>')+'</div>'
    + '<div class="g2"><label><span id="b_price_l">Prix par nuit (DT)</span><input id="b_price" type="number" min="0" step="0.5" value="'+(b.pricePerNight||0)+'"></label><label>Source<select id="b_source">'+["Direct","Téléphone","Booking.com","Airbnb","Facebook / Instagram","Bouche à oreille","Autre"].map(s=>opt(s,s,b.source)).join("")+'</select></label></div>'
    + '<div id="b_warn"></div><div class="summary" id="b_sum"></div>'
    + '<div><h3>Paiements</h3><div id="b_pays"></div><div class="g2" style="margin-top:8px"><label>Montant (DT)<input id="p_amt" type="number" min="0" step="0.5" placeholder="0"></label><label>Mode<select id="p_meth">'+["Espèces","Virement","Carte","Chèque","Plateforme"].map(s=>opt(s,s)).join("")+'</select></label></div><div class="row" style="margin-top:8px"><input id="p_date" type="date" value="'+today()+'" style="flex:1"><button type="button" class="btn sm" id="p_add"'+dis()+'>+ Ajouter le paiement</button></div></div>'
@@ -711,6 +745,7 @@ function bookingSheet(b){
     g("b_in").addEventListener("change",()=>{ if(g("b_out").value<=g("b_in").value) g("b_out").value=addDays(g("b_in").value,1); sync(); });
     ["b_out","b_price","b_guests","b_client"].forEach(id=>g(id).addEventListener("input",sync));
     g("b_baby").addEventListener("change",sync);
+    if(g("b_ics")) g("b_ics").addEventListener("click",()=>{ const x={...b, arrivalTime:g("b_time").value||"14:00"}; downloadIcs([x], "arrivee-"+b.checkIn+".ics"); });
     sh.querySelectorAll("[data-step]").forEach(btn=>btn.addEventListener("click",()=>{ const i=g("b_guests"); i.value=Math.max(1,Math.min(30,(Number(i.value)||1)+Number(btn.dataset.step))); sync(); }));
     g("b_client").addEventListener("change",sync);
     g("p_add").addEventListener("click",()=>{ const a=Number(g("p_amt").value); if(!(a>0)){ g("p_amt").focus(); return; } b.payments=(b.payments||[]).concat([{amount:a,method:g("p_meth").value,date:g("p_date").value||today()}]); g("p_amt").value=""; sync(); });
@@ -756,7 +791,7 @@ function bookingSheet(b){
       { const ci=g("b_in").value, co=g("b_out").value, rid=g("b_room").value;
         const clash = conflicts(rid,ci,co,b.id);
         if(clash.length && b.status!=="annulee"){ const x=clash[0]; return err((isHouse(rid)?"La maison entière n'est pas libre : "+esc(room(x.roomId)?.name||"une chambre"):esc(room(x.roomId)?.name||"Cette chambre"))+" est déjà réservée du "+fmtD(x.checkIn)+" au "+fmtD(x.checkOut)+" ("+esc(client(x.clientId)?.name||"")+"). Choisissez une autre chambre ou d'autres dates."); } }
-      Object.assign(b,{clientId:cid, roomId:g("b_room").value, guests:Number(g("b_guests").value)||1, babyBed:g("b_baby").checked, checkIn:g("b_in").value, checkOut:g("b_out").value, pricePerNight:Number(g("b_price").value)||0, source:g("b_source").value, notes:g("b_notes").value.trim()});
+      Object.assign(b,{clientId:cid, roomId:g("b_room").value, guests:Number(g("b_guests").value)||1, babyBed:g("b_baby").checked, arrivalTime:g("b_time").value||"14:00", checkIn:g("b_in").value, checkOut:g("b_out").value, pricePerNight:Number(g("b_price").value)||0, source:g("b_source").value, notes:g("b_notes").value.trim()});
       b.priceMode = mode; b.total = nights(b.checkIn,b.checkOut)*b.pricePerNight*(mode==="personne"?b.guests:1); delete b.example;
       if(await save("bookings",b.id,strip(b))){ const n=pics.filter(p=>!p.saved||p.del).length; if(n) toast("Enregistrement des photos…"); await savePics(cid); closeSheet(); toast("Réservation enregistrée"); }
     });
@@ -851,6 +886,8 @@ document.addEventListener("click", async e=>{
   if(a==="new-room") return roomSheet(null);
   if(a==="edit-room"){ const r=room(id); if(r) roomSheet(r); return; }
   if(a==="rooms-sheet") return roomsSheet();
+  if(a==="ics-all") return downloadIcs(upcomingArrivals(24), "arrivees-24h.ics");
+  if(a==="ics-upcoming"){ const t=today(); return downloadIcs(activeBookings().filter(b=>b.checkIn>=t).sort((x,y)=>x.checkIn.localeCompare(y.checkIn)), "arrivees-a-venir.ics"); }
   if(a==="cycle-status"){ const r=room(id); if(!r) return; const order=["propre","a_nettoyer","reparation"]; const nx=order[(order.indexOf(r.status||"propre")+1)%3]; await save("rooms",r.id,{...strip(r),status:nx}); return; }
   if(a==="cal-prev"){ S.calStart=addDays(S.calStart,-7); return render(); }
   if(a==="cal-next"){ S.calStart=addDays(S.calStart,7); return render(); }
@@ -875,6 +912,7 @@ document.addEventListener("pointerover", e=>{ const el=e.target.closest("[data-t
 document.addEventListener("pointermove", e=>{ if(tipEl.hidden) return; const w=tipEl.offsetWidth, x=Math.min(window.innerWidth-w-8, Math.max(8,e.clientX-w/2)); tipEl.style.left=x+"px"; tipEl.style.top=Math.max(8,e.clientY-44)+"px"; });
 document.addEventListener("pointerdown", e=>{ if(!e.target.closest("[data-tip]")) tipEl.hidden=true; else { const el=e.target.closest("[data-tip]"); tipEl.textContent=el.dataset.tip; tipEl.hidden=false; const w=tipEl.offsetWidth; tipEl.style.left=Math.min(window.innerWidth-w-8,Math.max(8,e.clientX-w/2))+"px"; tipEl.style.top=Math.max(8,e.clientY-50)+"px"; } });
 window.addEventListener("scroll", ()=>{ tipEl.hidden=true; }, {passive:true});
+setInterval(()=>{ if(!sheetOpen && S.db && (S.tab==="jour")) render(); }, 60000);
 let rz; window.addEventListener("resize", ()=>{ clearTimeout(rz); rz=setTimeout(()=>{ if(S.tab==="ana" && !sheetOpen) render(); },200); });
 boot();
 })();
