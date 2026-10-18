@@ -325,12 +325,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=29"></script>
+<script src="firebase-config.js?v=30"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "29";
+const APP_VERSION = "30";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -370,7 +370,7 @@ const DEF_SET = {address:"", housePhone:"", checkinTime:"14:00", checkoutTime:"1
 S.settings = JSON.parse(JSON.stringify(DEF_SET));
 const extrasSum = b => (b.extras||[]).reduce((t,x)=>t+(Number(x.qty)||0)*(Number(x.price)||0),0);
 const depositDue = b => Math.round((Number(b.total)||0)*(Number(S.settings.depositPct)||0)/100);
-const isOption = b => b.status==="option";
+const isOption = b => false;
 const optionLate = b => isOption(b) && b.depositBy && b.depositBy < today();
 const firstName = n => String(n||"").trim().split(/\s+/)[0]||"";
 const CODES=[["216","Tunisie"],["213","Algérie"],["218","Libye"],["212","Maroc"],["33","France"],["32","Belgique"],["41","Suisse"],["352","Luxembourg"],["49","Allemagne"],["39","Italie"],["34","Espagne"],["351","Portugal"],["44","Royaume-Uni"],["31","Pays-Bas"],["43","Autriche"],["46","Suède"],["7","Russie"],["90","Turquie"],["20","Égypte"],["966","Arabie saoudite"],["971","Émirats"],["974","Qatar"],["965","Koweït"],["1","États-Unis / Canada"],["86","Chine"],["81","Japon"]];
@@ -613,7 +613,7 @@ function vCal(){
     h += '</tr>';
   });
   h += '</tbody></table></div>';
-  h += '<div class="legend"><span><i style="background:var(--accent)"></i>Payé</span><span><i style="background:var(--jasmin)"></i>Solde à encaisser</span><span><i style="background:var(--accent);opacity:.6;outline:1.5px dashed var(--fg);outline-offset:-1.5px"></i>Option (acompte attendu)</span><span><i style="background:repeating-linear-gradient(135deg,var(--line) 0 3px,transparent 3px 6px)"></i>Maison entière indisponible</span><span>Touchez une case vide pour réserver.</span></div>';
+  h += '<div class="legend"><span><i style="background:var(--accent)"></i>Payé</span><span><i style="background:var(--jasmin)"></i>Solde à encaisser</span><span><i style="background:repeating-linear-gradient(135deg,var(--line) 0 3px,transparent 3px 6px)"></i>Maison entière indisponible</span><span>Touchez une case vide pour réserver.</span></div>';
   if(!S.rooms.length) h += '<div class="empty">Ajoutez vos chambres dans Finances › Chambres pour voir le calendrier.</div>';
   return h;
 }
@@ -628,7 +628,7 @@ function vResa(){
   else if(f==="passees") list = list.filter(b=>b.status!=="annulee" && b.checkOut<t).reverse();
   else if(f==="impayees") list = list.filter(b=>b.status!=="annulee" && balance(b)>0);
   else if(f==="annulees") list = list.filter(b=>b.status==="annulee");
-  const seg = [["avenir","À venir"],["options","Options"],["impayees","Impayées"],["passees","Passées"],["annulees","Annulées"]];
+  const seg = [["avenir","À venir"],["impayees","Impayées"],["passees","Passées"],["annulees","Annulées"]];
   let h = '<div class="row spread"><h2>Réservations</h2><div class="row"><button class="btn sm" data-act="ics-upcoming"><span class="hm">Rappels dans le calendrier</span><span class="sm-only">Rappels</span></button><button class="btn primary hm" data-act="new-booking"'+(S.canWrite?'':' disabled')+'>+ Réservation</button></div></div>';
   h += '<input class="search" id="resaQ" type="search" placeholder="Rechercher un client, un téléphone…" value="'+esc(S.resaQ||"")+'">';
   h += '<div class="seg" role="tablist">'+seg.map(([k,l])=>'<button class="'+(k===f?'on':'')+'" data-act="resa-filter" data-f="'+k+'">'+l+'</button>').join("")+'</div>';
@@ -669,7 +669,7 @@ function vFin(){
   if(Object.keys(byCat).length) h += '<div class="row" style="margin-bottom:8px">'+Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<span class="pill info num">'+esc(k)+' · '+dt(v)+'</span>').join("")+'</div>';
   h += '<div class="list">'+(exps.length?exps.map(e=>'<div class="item click" data-act="edit-expense" data-id="'+e.id+'"><div class="grow"><div class="t">'+esc(e.label||e.category)+(e.example?' <span class="pill ex">exemple</span>':'')+'</div><div class="s num">'+fmtD(e.date)+' · '+esc(e.category||"")+'</div></div><b class="num">'+dt(e.amount)+'</b></div>').join(""):'<div class="empty">Aucune dépense ce mois-ci.</div>')+'</div></div>';
   h += '<div><h3>Paiements reçus</h3><div class="list">'+(pays.length?pays.map(p=>{const c=client(p.b.clientId);return '<div class="item click" data-act="edit-booking" data-id="'+p.b.id+'"><div class="grow"><div class="t">'+esc(c?c.name:"")+'</div><div class="s num">'+fmtD(p.date)+' · '+esc(p.method||"")+'</div></div><b class="num">'+dt(p.amount)+'</b></div>';}).join(""):'<div class="empty">Aucun paiement enregistré ce mois-ci.</div>')+'</div>';
-  h += '<div class="row spread" style="margin:16px 0 8px"><h3 style="margin:0">Paramètres</h3></div><div class="list"><div class="item click" data-act="settings"><div class="grow"><div class="t">Maison, acompte et services en plus</div><div class="s">Adresse, heures, acompte '+(S.settings.depositPct||0)+' %, Wi-Fi, consignes, liste des services</div></div><span class="btn sm">Modifier</span></div></div>';
+  h += '<div class="row spread" style="margin:16px 0 8px"><h3 style="margin:0">Paramètres</h3></div><div class="list"><div class="item click" data-act="settings"><div class="grow"><div class="t">Maison et services en plus</div><div class="s">Adresse, heures, Wi-Fi, consignes, liste des services</div></div><span class="btn sm">Modifier</span></div></div>';
   h += '<div class="row spread" style="margin:16px 0 8px"><h3 style="margin:0">Chambres</h3><button class="btn sm" data-act="new-room"'+(S.canWrite?'':' disabled')+'>+ Chambre</button></div><div class="list">'+(S.rooms.length?S.rooms.map(r=>'<div class="item click" data-act="edit-room" data-id="'+r.id+'"><span class="roomtag">'+esc(r.short||r.name)+'</span><div class="grow"><div class="t">'+esc(r.name)+'</div><div class="s">'+roomDesc(r)+(false?' · '+esc(r.note):'')+'</div></div><span class="num">'+priceLabel(r)+'</span><svg class="pen" style="color:var(--muted)" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg></div>').join(""):'<div class="empty">Aucune chambre.</div>')+'</div></div></div>';
   return h;
 }
@@ -847,8 +847,7 @@ const dis = () => S.canWrite ? '' : ' disabled';
 
 function bookingSheet(b){
   const isNew = !b;
-  b = b ? JSON.parse(JSON.stringify(b)) : { id: uid(), roomId: (units()[0]||S.rooms[0])?.id||"", clientId:"", checkIn: today(), checkOut: addDays(today(),1), guests:2, pricePerNight: (units()[0]||S.rooms[0])?.price||0, total:0, payments:[], extras:[], status:"option", depositBy:"", source:"Direct", notes:"" };
-  if(isNew){ const lim=addDays(today(), Number(S.settings.depositDays)||3); b.depositBy = lim < b.checkIn ? lim : today(); }
+  b = b ? JSON.parse(JSON.stringify(b)) : { id: uid(), roomId: (units()[0]||S.rooms[0])?.id||"", clientId:"", checkIn: today(), checkOut: addDays(today(),1), guests:2, pricePerNight: (units()[0]||S.rooms[0])?.price||0, total:0, payments:[], extras:[], status:"confirmee", source:"Direct", notes:"" };
   const html = '<form class="f" id="bf"><div class="row spread"><h2>'+(isNew?'Nouvelle réservation':'Réservation')+'</h2><button type="button" class="btn ghost" data-act="close">Fermer</button></div>'
    + '<label>Client<select id="b_client"><option value="">— Choisir —</option>'+opt("__new","+ Nouveau client",b.clientId?"":"__new")+S.clients.map(c=>opt(c.id,c.name+(c.phone?" · "+c.phone:""),b.clientId)).join("")+'</select></label>'
    + '<div id="newClient" style="display:grid;gap:12px"><label>Nom complet<input id="nc_name" autocomplete="off"></label>'+phoneField("nc_phone","Téléphone","")+'</div>'
@@ -858,7 +857,6 @@ function bookingSheet(b){
    + '<div class="g2"><label>Arrivée<input id="b_in" type="date" value="'+b.checkIn+'"></label><label>Départ<input id="b_out" type="date" value="'+b.checkOut+'"></label></div>'
    + '<div class="g2"><label>Heure d\'arrivée prévue<input id="b_time" type="time" value="'+esc(b.arrivalTime||"14:00")+'"></label>'+(!isNew&&b.status!=="annulee"?'<label>Rappels<span class="row" style="gap:6px"><button type="button" class="btn sm" id="b_gcal">Google Agenda</button><button type="button" class="btn sm" id="b_ics">Autre calendrier</button></span></label>':'<span></span>')+'</div>'
    + (!isNew && b.status!=="annulee"?'<div><h3>Séjour</h3><div class="row" id="b_stay"></div></div>':'')
-   + (b.status!=="annulee"?'<div class="g2"><label>Statut<select id="b_status">'+opt("option","Option",b.status)+opt("confirmee","Confirmée",b.status)+'</select></label><label id="b_dep_l">Acompte avant le<input id="b_depby" type="date" value="'+esc(b.depositBy||"")+'"></label></div>':'')
    + '<div class="g2"><label><span id="b_price_l">Prix par nuit (DT)</span><input id="b_price" type="number" min="0" step="0.5" value="'+(b.pricePerNight||0)+'"></label><label>Source<select id="b_source">'+["Direct","Téléphone","Booking.com","Airbnb","Facebook / Instagram","Bouche à oreille","Autre"].map(s=>opt(s,s,b.source)).join("")+'</select></label></div>'
    + '<div><h3>Services en plus</h3><div id="b_ex"></div>'+(S.canWrite?'<div class="exadd"><select id="x_name" aria-label="Service">'+(S.settings.catalog||[]).map((c,i)=>'<option value="'+i+'">'+esc(c.name)+'</option>').join("")+'<option value="__autre">Autre…</option></select><input id="x_qty" type="number" min="1" value="1" aria-label="Quantité"><input id="x_price" type="number" min="0" step="0.5" aria-label="Prix unitaire (DT)" placeholder="Prix"><input id="x_other" placeholder="Nom du service" hidden><button type="button" class="btn sm" id="x_add">+ Ajouter</button></div>':'')+'</div>'
    + '<div id="b_warn"></div><div class="summary" id="b_sum"></div>'
@@ -866,7 +864,7 @@ function bookingSheet(b){
    + '<label>Notes<textarea id="b_notes" rows="2" placeholder="Heure d\'arrivée, demande particulière…">'+esc(b.notes)+'</textarea></label>'
    + '<div><h3>Pièces d\'identité (passeport, CIN)</h3><div class="pics" id="b_pics"><span class="s" style="color:var(--muted);font-size:.85rem">Chargement…</span></div>'
    + (S.canWrite?'<div class="row" style="margin-top:8px"><label class="btn sm upl">'+CAM_SVG+'Prendre une photo<input type="file" accept="image/*" capture="environment" id="b_cam" hidden></label><label class="btn sm upl">'+UP_SVG+'Choisir une photo<input type="file" accept="image/*" multiple id="b_file" hidden></label></div>':'')+'</div>'
-   + '<div><h3>Message WhatsApp</h3><div class="row" style="margin-bottom:8px"><select id="w_tpl" style="flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px">'+opt("confirmation","Confirmation de réservation","confirmation")+opt("acompte","Rappel acompte / paiement")+opt("arrivee","Consignes d\'arrivée")+opt("merci","Remerciement après le séjour")+'</select></div><textarea id="w_txt" rows="8"></textarea><div class="row" style="margin-top:8px"><button type="button" class="btn sm wa" id="w_send">'+WA_SVG+'Ouvrir WhatsApp</button><button type="button" class="btn sm" id="w_copy">Copier le texte</button><span class="s" id="w_to" style="color:var(--muted);font-size:.82rem"></span></div></div>'
+   + '<div><h3>Message WhatsApp</h3><div class="row" style="margin-bottom:8px"><select id="w_tpl" style="flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px">'+opt("confirmation","Confirmation de réservation","confirmation")+opt("acompte","Rappel de paiement")+opt("arrivee","Consignes d\'arrivée")+opt("merci","Remerciement après le séjour")+'</select></div><textarea id="w_txt" rows="8"></textarea><div class="row" style="margin-top:8px"><button type="button" class="btn sm wa" id="w_send">'+WA_SVG+'Ouvrir WhatsApp</button><button type="button" class="btn sm" id="w_copy">Copier le texte</button><span class="s" id="w_to" style="color:var(--muted);font-size:.82rem"></span></div></div>'
    + '<div id="b_err"></div>'
    + '<div class="row spread"><div class="row">'+(!isNew?(b.status==="annulee"?'<button type="button" class="btn sm" id="b_restore"'+dis()+'>Rétablir</button>':'<button type="button" class="btn sm" id="b_cancel"'+dis()+'>Annuler la réservation</button>')+'<button type="button" class="btn sm danger" id="b_del"'+dis()+'>Supprimer</button>':'')+'</div><button class="btn primary" type="submit"'+dis()+'>Enregistrer</button></div></form>';
   openSheet(html, sh=>{
@@ -880,7 +878,7 @@ function bookingSheet(b){
       const lodging = n * pr0 * (mode==="personne" ? ad0 + kd0*0.5 : 1), exs = extrasSum(b);
       b.total = lodging + exs;
       const p = paid(b);
-      const stv = g("b_status") ? g("b_status").value : b.status;
+      const stv = "confirmee";
       if(g("b_dep_l")) g("b_dep_l").hidden = stv!=="option";
       const dep = Math.round(b.total*(Number(S.settings.depositPct)||0)/100);
       g("b_ex").innerHTML = (b.extras||[]).length ? (b.extras||[]).map((x,i)=>'<div class="pay num"><span>'+esc(x.name)+' × '+x.qty+' · '+dt(x.price)+'</span><span>'+dt(x.qty*x.price)+(S.canWrite?' <button type="button" class="btn sm ghost" data-rmex="'+i+'" aria-label="Retirer ce service">×</button>':'')+'</span></div>').join("") : '<div class="s" style="color:var(--muted);font-size:.85rem">Aucun service ajouté.</div>';
@@ -915,7 +913,7 @@ function bookingSheet(b){
     const curClient = () => { const v=g("b_client").value; if(v==="__new") return {name:g("nc_name").value.trim(), phone:getPhone(g,"nc_phone")}; return client(v)||{}; };
     const waText = () => {
       const c=curClient(), r=room(g("b_room").value), ci=g("b_in").value, co=g("b_out").value, n=nights(ci||today(),co||today());
-      const ad=Math.max(1,Number(g("b_guests").value)||1), kd=Math.max(0,Number(g("b_kids").value)||0), p=paid(b), stv=g("b_status")?g("b_status").value:b.status;
+      const ad=Math.max(1,Number(g("b_guests").value)||1), kd=Math.max(0,Number(g("b_kids").value)||0), p=paid(b), stv="confirmee";
       const dep=Math.round(b.total*(Number(S.settings.depositPct)||0)/100), depBy=g("b_depby")?g("b_depby").value:"", ST=S.settings, tm=g("b_time").value||ST.checkinTime||"14:00";
       const hi = "Bonjour"+(firstName(c.name)?" "+firstName(c.name):"")+",";
       const pers = ad+" adulte"+(ad>1?"s":"")+(kd?" et "+kd+" enfant"+(kd>1?"s":""):"");
@@ -1012,8 +1010,7 @@ function bookingSheet(b){
         if(clash.length && b.status!=="annulee"){ const x=clash[0]; return err((isHouse(rid)?"La maison entière n'est pas libre : "+esc(room(x.roomId)?.name||"une chambre"):esc(room(x.roomId)?.name||"Cette chambre"))+" est déjà réservée du "+fmtD(x.checkIn)+" au "+fmtD(x.checkOut)+" ("+esc(client(x.clientId)?.name||"")+"). Choisissez une autre chambre ou d'autres dates."); } }
       Object.assign(b,{clientId:cid, roomId:g("b_room").value, adults:Math.max(1,Number(g("b_guests").value)||1), children:Math.max(0,Number(g("b_kids").value)||0), guests:Math.max(1,Number(g("b_guests").value)||1)+Math.max(0,Number(g("b_kids").value)||0), babyBed:g("b_baby").checked, arrivalTime:g("b_time").value||"14:00", checkIn:g("b_in").value, checkOut:g("b_out").value, pricePerNight:Number(g("b_price").value)||0, source:g("b_source").value, notes:g("b_notes").value.trim()});
       b.priceMode = mode; b.total = nights(b.checkIn,b.checkOut)*b.pricePerNight*(mode==="personne"?b.adults+b.children*0.5:1) + extrasSum(b); delete b.example;
-      if(g("b_status")){ b.status = g("b_status").value; b.depositBy = g("b_depby").value||""; }
-      let autoConf = false; if(b.status==="option" && depositDue(b)>0 && paid(b)>=depositDue(b)){ b.status="confirmee"; autoConf=true; }
+      if(b.status==="option") b.status="confirmee"; const autoConf=false;
       if(await save("bookings",b.id,strip(b))){ const n=pics.filter(p=>!p.saved||p.del).length; if(n) toast("Enregistrement des photos…"); await savePics(cid); closeSheet(); toast(autoConf?"Acompte reçu : réservation confirmée":"Réservation enregistrée"); }
     });
     sync();
@@ -1063,7 +1060,6 @@ function settingsSheet(){
   openSheet('<form class="f" id="sf"><div class="row spread"><h2>Paramètres de la maison</h2><button type="button" class="btn ghost" data-act="close">Fermer</button></div>'
     + inp("s_addr","Adresse",st.address,"text","Rue, ville") + inp("s_phone","Téléphone de la maison",st.housePhone,"tel")
     + '<div class="g2">'+inp("s_in","Arrivée à partir de",st.checkinTime,"time")+inp("s_out","Départ avant",st.checkoutTime,"time")+'</div>'
-    + '<div class="g2">'+inp("s_pct","Acompte demandé (%)",st.depositPct,"number")+inp("s_days","Délai pour l\'acompte (jours)",st.depositDays,"number")+'</div>'
     + inp("s_wifi","Wi-Fi (nom et mot de passe)",st.wifi,"text","Ex. DarSalma / motdepasse")
     + '<label>Consignes d\'arrivée (envoyées par WhatsApp)<textarea id="s_instr" rows="3" placeholder="Ex. Sonnez à la porte bleue, parking dans la rue derrière…">'+esc(st.instructions)+'</textarea></label>'
     + '<div><h3>Services en plus et leurs prix</h3><div id="s_cat" style="display:grid;gap:8px"></div><button type="button" class="btn sm" id="s_catadd" style="margin-top:8px">+ Ajouter un service</button></div>'
@@ -1076,7 +1072,7 @@ function settingsSheet(){
     g("s_catadd").addEventListener("click",()=>{ st.catalog.push({name:"",price:0,unit:""}); draw(); const l=g("s_cat").querySelectorAll('[data-k="name"]'); l[l.length-1].focus(); });
     g("sf").addEventListener("submit", async e=>{ e.preventDefault();
       const data = {address:g("s_addr").value.trim(), housePhone:g("s_phone").value.trim(), checkinTime:g("s_in").value||"14:00", checkoutTime:g("s_out").value||"12:00",
-        depositPct:Math.max(0,Math.min(100,Number(g("s_pct").value)||0)), depositDays:Math.max(0,Number(g("s_days").value)||0), wifi:g("s_wifi").value.trim(), instructions:g("s_instr").value.trim(),
+        depositPct:0, depositDays:0, wifi:g("s_wifi").value.trim(), instructions:g("s_instr").value.trim(),
         catalog: st.catalog.filter(c=>String(c.name||"").trim()).map(c=>({name:String(c.name).trim(), price:Number(c.price)||0, unit:String(c.unit||"").trim()}))};
       if(await save("settings","general",data)){ closeSheet(); toast("Paramètres enregistrés"); } });
   });
