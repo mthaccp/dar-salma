@@ -1007,7 +1007,6 @@ async function policePdfLib(){
       const el=document.createElement("script");
       el.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
       el.crossOrigin="anonymous";
-      el.integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4D5S0dKKhjK67JFZmNL3kKPjEQ0YnE7N+YI1x2pqnJ9sqNR72w==";
       el.onload=()=>window.jspdf?.jsPDF?resolve(window.jspdf.jsPDF):reject(new Error("Bibliothèque PDF indisponible"));
       el.onerror=()=>reject(new Error("Chargement PDF impossible"));
       document.head.appendChild(el);
