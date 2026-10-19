@@ -402,12 +402,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=54"></script>
+<script src="firebase-config.js?v=55"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "54";
+const APP_VERSION = "55";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -985,12 +985,24 @@ const EV_TYPES = {diner:"Dîner", formation:"Formation", espace:"Location d'espa
 const EV_MODES = {personne:"Par personne", personne_jour:"Par personne et par jour", forfait:"Forfait (prix total)", forfait_jour:"Forfait par jour"};
 const EV_DEF = {diner:{mode:"personne",price:90}, formation:{mode:"forfait_jour",price:0}, espace:{mode:"forfait",price:0}, autre:{mode:"forfait",price:0}};
 const evDays = e => Math.max(1, e.endDate && e.endDate>e.date ? nights(e.date,e.endDate)+1 : 1);
-const evBase = e => { const p=Number(e.price)||0, n=Math.max(0,Number(e.people)||0), d=evDays(e);
+const evBase = e => { if(e.smartPricing) return (e.withCatering ? Math.max(0,Number(e.people)||0)*Math.max(0,Number(e.cateringPrice)||0):0)+(e.withRental?Math.max(0,Number(e.rentalFee)||0):0); const p=Number(e.price)||0, n=Math.max(0,Number(e.people)||0), d=evDays(e);
   return e.mode==="personne" ? p*n : e.mode==="personne_jour" ? p*n*d : e.mode==="forfait_jour" ? p*d : p; };
 const evTotal = e => evBase(e) + extrasSum(e);
 const evPaid = e => (e.payments||[]).reduce((t,p)=>t+(Number(p.amount)||0),0);
 const evBal = e => Math.max(0, evTotal(e)-evPaid(e));
 const activeEvents = () => S.events.filter(e=>e.status!=="annule");
+const EV_STATUS={devis:"Demande / devis",option:"En option",confirme:"Confirmé",termine:"Terminé",annule:"Annulé"};
+const EV_TASKS=["Menu / prestation confirmé(e)","Acompte vérifié","Achats et matériel préparés","Événement prêt"];
+const EV_SPACES=["Jardin","Terrasse","Salle intérieure","Maison entière"];
+function eventClashes(e){
+  const place=String(e.space||"").trim().toLowerCase();
+  if(!place||e.status==="annule")return [];
+  const a=e.date,z=evEnd(e);
+  return activeEvents().filter(x=>x.id!==e.id && String(x.space||"").trim().toLowerCase()===place
+    && x.date<=z && a<=evEnd(x)
+    && (x.date!==a||evEnd(x)!==a||z!==a||(e.startTime||"00:00")<(x.endTime||"23:59")&&(x.startTime||"00:00")<(e.endTime||"23:59")));
+}
+
 const evEnd = e => e.endDate && e.endDate>e.date ? e.endDate : e.date;
 const evOn = (e, d) => e.date<=d && d<=evEnd(e);
 function evItem(e, extra){
@@ -1014,19 +1026,30 @@ function vEvents(){
 }
 function eventSheet(e0, preset){
   const isNew=!e0;
-  const e = e0 ? JSON.parse(JSON.stringify(e0)) : Object.assign({id:uid(), type:"diner", title:"", clientId:"", date:today(), endDate:"", startTime:"20:00", people:10, mode:"personne", price:90, menu:"", space:"", extras:[], payments:[], status:"confirme", notes:""}, preset||{});
+  const e = e0 ? JSON.parse(JSON.stringify(e0)) : Object.assign({id:uid(), type:"diner", title:"", clientId:"", date:today(), endDate:"", startTime:"20:00", people:10, mode:"personne", price:90, menu:"", space:"", extras:[], payments:[], status:"option", notes:"",smartPricing:true,withCatering:true,withRental:false,cateringPrice:90,rentalFee:0,costEstimate:0,checklist:[false,false,false,false],endTime:"23:00"}, preset||{});
   openSheet('<form class="f" id="ef2"><div class="row spread"><h2>'+(isNew?'Nouvel événement':'Événement')+'</h2><button type="button" class="btn ghost" data-act="close">Fermer</button></div>'
     + '<div class="g2"><label>Type<select id="v_type">'+Object.entries(EV_TYPES).map(([k,l])=>opt(k,l,e.type)).join("")+'</select></label><label>Intitulé<input id="v_title" value="'+esc(e.title)+'" placeholder="Ex. Dîner anniversaire, Formation RH"></label></div>'
     + '<label>Client<select id="v_client"><option value="">— Choisir —</option>'+opt("__new","+ Nouveau client",e.clientId?"":"__new")+S.clients.map(c=>opt(c.id,c.name+(c.phone?" · "+c.phone:""),e.clientId)).join("")+'</select></label>'
     + '<div id="v_newc" style="display:grid;gap:12px"><label>Nom complet / société<input id="v_cname" autocomplete="off"></label>'+phoneField("v_cphone","Téléphone","")+'</div>'
     + '<div class="g2"><label>Date<input id="v_date" type="date" value="'+esc(e.date)+'"></label><label>Heure de début<input id="v_time" type="time" value="'+esc(e.startTime||"")+'"></label></div>'
-    + '<div class="g2"><label id="v_end_l">Jusqu\'au (plusieurs jours)<input id="v_end" type="date" value="'+esc(e.endDate||"")+'"></label><label>Espace<input id="v_space" value="'+esc(e.space||"")+'" placeholder="Ex. salle, jardin, terrasse"></label></div>'
+    + '<div class="g2"><label>Heure de fin<input id="v_endtime" type="time" value="'+esc(e.endTime||"23:00")+'"></label><label>Statut<select id="v_status">'+Object.entries(EV_STATUS).map(([k,v])=>opt(k,v,e.status||"confirme")).join("")+'</select></label></div>'
+    + '<div class="g2"><label id="v_end_l">Jusqu\'au (plusieurs jours)<input id="v_end" type="date" value="'+esc(e.endDate||"")+'"></label><label>Espace<select id="v_space"><option value="">— Choisir —</option>'+EV_SPACES.map(x=>opt(x,x,e.space)).join("")+'<option value="autre"'+(e.space&&!EV_SPACES.includes(e.space)?' selected':'')+'>Autre espace…</option></select><input id="v_space_other" value="'+esc(e.space&&!EV_SPACES.includes(e.space)?e.space:"")+'" placeholder="Précisez l’espace" hidden></label></div>'
     + '<div class="g2"><label>Personnes<span class="step"><svg class="pp" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.5a3 3 0 0 1 0 5.6M17.5 13.5a5 5 0 0 1 3 4.5"/></svg><button type="button" class="sb" data-step="-1" data-t="v_people" aria-label="Une personne de moins">−</button><input id="v_people" type="number" min="1" max="500" inputmode="numeric" value="'+esc(e.people)+'"><button type="button" class="sb" data-step="1" data-t="v_people" aria-label="Une personne de plus">+</button></span></label>'
-    + '<label>Tarif<select id="v_mode">'+Object.entries(EV_MODES).map(([k,l])=>opt(k,l,e.mode)).join("")+'</select></label></div>'
-    + '<div class="g2"><label><span id="v_price_l">Prix (DT)</span><input id="v_price" type="number" min="0" step="0.5" value="'+esc(e.price)+'"></label><span></span></div>'
+    + '<label id="v_old_mode">Tarif classique<select id="v_mode">'+Object.entries(EV_MODES).map(([k,l])=>opt(k,l,e.mode)).join("")+'</select></label></div>'
+    + '<div class="card" style="gap:10px"><h3 style="margin:0">Prestations & tarification</h3>'
+    + '<label style="display:flex;align-items:center;gap:8px;color:var(--fg)"><input type="checkbox" style="width:auto" id="v_smart"'+(e.smartPricing?' checked':'')+'> Utiliser la tarification intelligente</label>'
+    + '<div id="v_smart_options" style="display:grid;gap:10px"><label style="display:flex;align-items:center;gap:8px;color:var(--fg)"><input type="checkbox" style="width:auto" id="v_catering"'+(e.withCatering?' checked':'')+'> Restauration</label>'
+    + '<label id="v_catering_row">Tarif du repas par personne (DT)<input type="number" min="0" step="0.5" id="v_catering_price" value="'+esc(e.cateringPrice??90)+'"></label>'
+    + '<label style="display:flex;align-items:center;gap:8px;color:var(--fg)"><input type="checkbox" style="width:auto" id="v_rental"'+(e.withRental?' checked':'')+'> Location / privatisation</label>'
+    + '<label id="v_rental_row">Prix de location (DT)<input type="number" min="0" step="0.5" id="v_rental_fee" value="'+esc(e.rentalFee??0)+'"></label></div>'
+    + (!e.smartPricing?'<div class="note info">Tarification historique conservée tant que vous n’activez pas la nouvelle tarification.</div>':'')+'</div>'
+    + '<div class="g2" id="v_old_price"><label><span id="v_price_l">Prix (DT)</span><input id="v_price" type="number" min="0" step="0.5" value="'+esc(e.price)+'"></label><span></span></div>'
     + '<label id="v_menu_l">Menu / programme<textarea id="v_menu" rows="3" placeholder="Ex. entrée : salade méchouia · plat : couscous au poisson · dessert : assida">'+esc(e.menu||"")+'</textarea></label>'
     + '<div><h3>Services en plus</h3><div id="v_ex"></div>'+(S.canWrite?'<div class="exadd"><select id="vx_name" aria-label="Service">'+(S.settings.catalog||[]).map((c,i)=>'<option value="'+i+'">'+esc(c.name)+'</option>').join("")+'<option value="__autre">Autre…</option></select><input id="vx_qty" type="number" min="1" value="1" aria-label="Quantité"><input id="vx_price" type="number" min="0" step="0.5" aria-label="Prix unitaire (DT)" placeholder="Prix"><input id="vx_other" placeholder="Nom du service" hidden><button type="button" class="btn sm" id="vx_add">+ Ajouter</button></div>':'')+'</div>'
     + '<div class="summary" id="v_sum"></div>'
+    + '<div class="card" style="gap:10px"><h3 style="margin:0">Rentabilité prévisionnelle</h3><label>Dépenses estimées (DT)<input id="v_cost" type="number" min="0" step="0.5" value="'+esc(e.costEstimate||0)+'"></label><div class="summary" id="v_margin"></div></div>'
+    + '<div class="card" style="gap:8px"><h3 style="margin:0">Suivi de préparation</h3><div id="v_tasks">'+EV_TASKS.map((x,i)=>'<label style="display:flex;align-items:center;gap:8px;color:var(--fg)"><input type="checkbox" style="width:auto" data-task="'+i+'"'+((e.checklist||[])[i]?' checked':'')+'> '+esc(x)+'</label>').join("")+'</div><div class="s" id="v_progress"></div></div>'
+    + '<div id="v_clashes"></div>'
     + '<div><h3>Paiements</h3><div id="v_pays"></div><div class="g2" style="margin-top:8px"><label>Montant (DT)<input id="vp_amt" type="number" min="0" step="0.5" placeholder="0"></label><label>Mode<select id="vp_meth">'+["Espèces","Virement","Carte","Chèque"].map(x=>opt(x,x)).join("")+'</select></label></div><div class="row" style="margin-top:8px"><input id="vp_date" type="date" value="'+today()+'" style="flex:1"><button type="button" class="btn sm" id="vp_add"'+dis()+'>+ Ajouter le paiement</button></div></div>'
     + '<label>Notes<textarea id="v_notes" rows="2" placeholder="Allergies, matériel (vidéoprojecteur, tables), décoration…">'+esc(e.notes||"")+'</textarea></label>'
     + '<div id="v_err"></div>'
@@ -1035,17 +1058,33 @@ function eventSheet(e0, preset){
     const sync=()=>{
       g("v_newc").hidden = g("v_client").value!=="__new";
       const ty=g("v_type").value; g("v_menu_l").firstChild.textContent = ty==="diner" ? "Menu" : "Programme / besoins";
+      e.smartPricing=g("v_smart").checked;
+      e.withCatering=g("v_catering").checked;e.withRental=g("v_rental").checked;
+      e.cateringPrice=Number(g("v_catering_price").value)||0;e.rentalFee=Number(g("v_rental_fee").value)||0;
+      e.costEstimate=Number(g("v_cost").value)||0;e.endTime=g("v_endtime").value||"";
+      e.startTime=g("v_time").value||"";e.status=g("v_status").value;
+      e.space=g("v_space").value==="autre"?g("v_space_other").value.trim():g("v_space").value;
+      e.checklist=[...g("v_tasks").querySelectorAll("[data-task]")].map(x=>x.checked);
+      g("v_progress").textContent=e.checklist.filter(Boolean).length+" / "+EV_TASKS.length+" tâches terminées";
+      g("v_old_mode").hidden=e.smartPricing;g("v_old_price").hidden=e.smartPricing;
+      g("v_smart_options").hidden=!e.smartPricing;
+      g("v_catering_row").hidden=!e.withCatering;g("v_rental_row").hidden=!e.withRental;
+      g("v_space_other").hidden=g("v_space").value!=="autre";
       Object.assign(e,{type:ty, mode:g("v_mode").value, price:Number(g("v_price").value)||0, people:Math.max(1,Number(g("v_people").value)||1), date:g("v_date").value||today(), endDate:g("v_end").value||""});
       const md=e.mode, d=evDays(e), base=evBase(e), ex=extrasSum(e), tot=base+ex, p=evPaid(e);
       g("v_price_l").textContent = md==="personne"?"Prix par personne (DT)":md==="personne_jour"?"Prix par personne et par jour (DT)":md==="forfait_jour"?"Prix par jour (DT)":"Prix total (DT)";
-      const calc = md==="personne" ? e.people+' pers. × '+dt(e.price) : md==="personne_jour" ? e.people+' pers. × '+d+' jour(s) × '+dt(e.price) : md==="forfait_jour" ? d+' jour(s) × '+dt(e.price) : 'Forfait';
+      g("v_margin").innerHTML='<div><span>Marge estimée (avant taxes)</span><b>'+dt(tot-e.costEstimate)+'</b></div><div><span>Taux de marge</span><b>'+(tot?Math.round((tot-e.costEstimate)/tot*100):0)+' %</b></div>';
+      const clashes=eventClashes(e);
+      g("v_clashes").innerHTML=clashes.length?'<div class="note warn">Attention : cet espace est déjà réservé sur cette période ('+clashes.length+' autre(s) événement(s)).</div>':'';
+      const calc = e.smartPricing ? 'Restauration + location' : md==="personne" ? e.people+' pers. × '+dt(e.price) : md==="personne_jour" ? e.people+' pers. × '+d+' jour(s) × '+dt(e.price) : md==="forfait_jour" ? d+' jour(s) × '+dt(e.price) : 'Forfait';
       g("v_sum").innerHTML='<div><span>'+calc+'</span><span class="num">'+dt(base)+'</span></div>'+(ex?'<div><span>Services en plus</span><span class="num">'+dt(ex)+'</span></div>':'')+'<div class="big"><span>Total</span><span class="num">'+dt(tot)+'</span></div><div><span>Déjà payé</span><span class="num">'+dt(p)+'</span></div><div class="big"><span>Reste à payer</span><span class="num">'+dt(Math.max(0,tot-p))+'</span></div>';
       g("v_ex").innerHTML = (e.extras||[]).length ? e.extras.map((x,i)=>'<div class="pay num"><span>'+esc(x.name)+' × '+x.qty+' · '+dt(x.price)+'</span><span>'+dt(x.qty*x.price)+(S.canWrite?' <button type="button" class="btn sm ghost" data-rmex="'+i+'" aria-label="Retirer ce service">×</button>':'')+'</span></div>').join("") : '<div class="s" style="color:var(--muted);font-size:.85rem">Aucun service ajouté.</div>';
       g("v_pays").innerHTML = (e.payments||[]).length ? e.payments.map((x,i)=>'<div class="pay num"><span>'+fmtD(x.date)+' · '+esc(x.method)+'</span><span>'+dt(x.amount)+(S.canWrite?' <button type="button" class="btn sm ghost" data-rmpay="'+i+'" aria-label="Retirer ce paiement">×</button>':'')+'</span></div>').join("") : '<div class="s" style="color:var(--muted);font-size:.85rem">Aucun paiement pour l\'instant.</div>';
     };
-    g("v_type").addEventListener("change",()=>{ const d=EV_DEF[g("v_type").value]; if(isNew&&d){ g("v_mode").value=d.mode; g("v_price").value=d.price||""; } sync(); });
-    ["v_mode","v_client","v_date","v_end"].forEach(id=>g(id).addEventListener("change",sync));
-    ["v_price","v_people"].forEach(id=>g(id).addEventListener("input",sync));
+    g("v_type").addEventListener("change",()=>{ const d=EV_DEF[g("v_type").value]; if(isNew&&d){ g("v_mode").value=d.mode; g("v_price").value=d.price||"";g("v_catering").checked=g("v_type").value==="diner";g("v_rental").checked=g("v_type").value==="espace";} sync(); });
+    ["v_mode","v_client","v_date","v_end","v_time","v_endtime","v_status","v_space","v_smart","v_catering","v_rental"].forEach(id=>g(id).addEventListener("change",sync));
+    g("v_tasks").addEventListener("change",sync);
+    ["v_price","v_people","v_catering_price","v_rental_fee","v_cost","v_space_other"].forEach(id=>g(id).addEventListener("input",sync));
     sh.querySelectorAll("[data-step]").forEach(btn=>btn.addEventListener("click",()=>{ const i=g(btn.dataset.t); i.value=Math.max(1,Math.min(500,(Number(i.value)||0)+Number(btn.dataset.step))); sync(); }));
     if(g("vx_name")){
       const xfill=()=>{ const v=g("vx_name").value; g("vx_other").hidden=v!=="__autre"; if(v!=="__autre"){ const c=(S.settings.catalog||[])[Number(v)]; g("vx_price").value=c&&c.price?c.price:""; } };
@@ -1067,7 +1106,11 @@ function eventSheet(e0, preset){
       if(!cid) return err("Choisissez un client.");
       if(e.endDate && e.endDate<e.date) return err("La date de fin doit être après la date de début.");
       sync();
-      Object.assign(e,{clientId:cid, title:g("v_title").value.trim(), startTime:g("v_time").value||"", space:g("v_space").value.trim(), menu:g("v_menu").value.trim(), notes:g("v_notes").value.trim()});
+      if(e.endTime&&e.startTime&&(!e.endDate||e.endDate===e.date)&&e.endTime<=e.startTime)return err("L’heure de fin doit être après l’heure de début.");
+      if(e.smartPricing&&!e.withCatering&&!e.withRental)return err("Choisissez restauration ou location.");
+      if(!e.space)return err("Indiquez un espace.");
+      if(e.status==="confirme"&&eventClashes(e).length)return err("Conflit : l’espace est déjà occupé. Modifiez les horaires ou la date.");
+      Object.assign(e,{clientId:cid, title:g("v_title").value.trim(), menu:g("v_menu").value.trim(), notes:g("v_notes").value.trim()});
       e.total = evTotal(e);
       if(await save("events",e.id,strip(e))){ closeSheet(); toast("Événement enregistré"); }
     });
