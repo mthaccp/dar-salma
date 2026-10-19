@@ -383,12 +383,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=42"></script>
+<script src="firebase-config.js?v=43"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "42";
+const APP_VERSION = "43";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -940,7 +940,7 @@ function downloadIcs(list, name){
 // ---------- fiche de police ----------
 const TF = [
   ["nom","Nom","text"],["prenom","Prénom","text"],["naissance","Date de naissance","date"],["lieuNaissance","Lieu de naissance","text"],
-  ["nationalite","Nationalité","text"],["profession","Profession","text"],["adresse","Domicile habituel","text"],
+  ["nationalite","Nationalité","text"],
   ["pieceType","Pièce","select"],["pieceNum","N° de la pièce","text"],["pieceDate","Délivrée le","date"],["pieceLieu","Délivrée à","text"]
 ];
 function splitName(n){ const p=String(n||"").trim().split(/\s+/); if(p.length<2) return {prenom:p[0]||"", nom:""}; return {prenom:p.slice(0,-1).join(" "), nom:p[p.length-1]}; }
@@ -958,9 +958,9 @@ function ficheHtml(b, t, i, n){
   const row=(l,v)=>'<tr><th>'+l+'</th><td>'+esc(v||"")+'</td></tr>';
   return '<div class="fiche"><div class="fh"><div><b>DAR SALMA</b><span>Maison d\'hôtes'+(ST.address?' · '+esc(ST.address):'')+(ST.housePhone?' · '+esc(ST.housePhone):'')+'</span></div><div class="ft">FICHE DE POLICE<span>Voyageur '+(i+1)+' / '+n+'</span></div></div>'
     + '<table>'+row("Nom",(t.nom||"").toUpperCase())+row("Prénom",t.prenom)+row("Date et lieu de naissance",[fdate(t.naissance),t.lieuNaissance].filter(Boolean).join(" à "))
-    + row("Nationalité",t.nationalite)+row("Profession",t.profession)+row("Domicile habituel",t.adresse)
+    + row("Nationalité",t.nationalite)
     + row("Pièce d'identité",[t.pieceType,t.pieceNum].filter(Boolean).join(" n° "))+row("Délivrée le / à",[fdate(t.pieceDate),t.pieceLieu].filter(Boolean).join(" à "))
-    + row("Date d'arrivée",fdate(b.policeIn||b.checkIn)+((b.policeTime||(b.arrivedAt&&hhmm(b.arrivedAt)))?" à "+(b.policeTime||hhmm(b.arrivedAt)):""))+row("Date de départ",fdate(b.policeOut||b.checkOut))
+    + row("Date d'arrivée",fdate(b.policeIn||b.checkIn))+row("Date de départ",fdate(b.policeOut||b.checkOut))
     + row("Chambre",r?r.name:"")+row("Venant de",b.provenance)+row("Se rendant à",b.destination)
     + row("Accompagné de", (b.children?b.children+" enfant(s) de moins de 12 ans":"")+(b.babyBed?(b.children?", ":"")+"bébé":""))
     + '</table><div class="fs"><div>Signature du voyageur</div><div>Cachet et signature de l\'hôte</div></div></div>';
@@ -989,8 +989,7 @@ function policeSheet(b0, after){
     + TF.map(([k,l,ty])=>'<label>'+l+(ty==="select"?'<select data-ti="'+i+'" data-tk="'+k+'">'+pieceOpt(t[k])+'</select>':'<input data-ti="'+i+'" data-tk="'+k+'" type="'+ty+'" value="'+esc(t[k]||"")+'"'+(k==="nom"?' autocapitalize="characters"':'')+'>')+'</label>').join("")+'</div></div>').join("");
   openSheet('<form class="f" id="pf"><div class="row spread"><h2>Fiche de police</h2><button type="button" class="btn ghost" data-act="close">Fermer</button></div>'
     + '<p style="margin:0;color:var(--muted);font-size:.88rem">'+esc(client(b.clientId)?.name||"")+' · '+fmtD(b.checkIn)+' → '+fmtD(b.checkOut)+' · '+esc(room(b.roomId)?.name||"")+'. Une fiche est imprimée par adulte, avec les copies des pièces d\'identité de la réservation.</p>'
-    + '<div class="g2"><label>Date d\'arrivée<input id="p_in" type="date" value="'+esc(b.policeIn||b.checkIn)+'"></label><label>Heure d\'arrivée<input id="p_time" type="time" value="'+esc(b.policeTime||(b.arrivedAt?hhmm(b.arrivedAt):(b.arrivalTime||"")))+'"></label></div>'
-    + '<div class="g2"><label>Date de départ<input id="p_out" type="date" value="'+esc(b.policeOut||b.checkOut)+'"></label><span></span></div>'
+    + '<div class="g2"><label>Date d\'arrivée<input id="p_in" type="date" value="'+esc(b.policeIn||b.checkIn)+'"></label><label>Date de départ<input id="p_out" type="date" value="'+esc(b.policeOut||b.checkOut)+'"></label></div>'
     + '<div class="g2"><label>Venant de (ville, pays)<input id="p_from" value="'+esc(b.provenance||"")+'"></label><label>Se rendant à<input id="p_to" value="'+esc(b.destination||"")+'"></label></div>'
     + '<div id="p_list" style="display:grid;gap:14px"></div>'
     + (S.canWrite?'<button type="button" class="btn sm" id="p_add" style="justify-self:start">+ Ajouter un voyageur</button>':'')
@@ -1002,10 +1001,10 @@ function policeSheet(b0, after){
     g("p_list").addEventListener("change", e=>{ const i=e.target.dataset.ti; if(i==null) return; list[Number(i)][e.target.dataset.tk]=e.target.value; });
     g("p_list").addEventListener("click", e=>{ const i=e.target.dataset.trm; if(i!=null){ list.splice(Number(i),1); paint(); } });
     if(g("p_add")) g("p_add").addEventListener("click", ()=>{ list.push({nom:"",prenom:"",pieceType:"Passeport"}); paint(); });
-    const collect = () => { b.travelers = list.map(t=>{ const o={}; TF.forEach(([k])=>o[k]=String(t[k]||"").trim()); return o; }); b.provenance=g("p_from").value.trim(); b.destination=g("p_to").value.trim(); b.policeIn=g("p_in").value||b.checkIn; b.policeOut=g("p_out").value||b.checkOut; b.policeTime=g("p_time").value||""; };
+    const collect = () => { b.travelers = list.map(t=>{ const o={}; TF.forEach(([k])=>o[k]=String(t[k]||"").trim()); return o; }); b.provenance=g("p_from").value.trim(); b.destination=g("p_to").value.trim(); b.policeIn=g("p_in").value||b.checkIn; b.policeOut=g("p_out").value||b.checkOut; };
     const persist = async () => {
       collect();
-      try{ await S.db.collection("bookings").doc(b.id).update({travelers:b.travelers, provenance:b.provenance, destination:b.destination, policeIn:b.policeIn, policeOut:b.policeOut, policeTime:b.policeTime});
+      try{ await S.db.collection("bookings").doc(b.id).update({travelers:b.travelers, provenance:b.provenance, destination:b.destination, policeIn:b.policeIn, policeOut:b.policeOut});
         const m=b.travelers[0], c=client(b.clientId);
         if(c && m){ const upd={}; if(m.nationalite && !c.nationality) upd.nationality=m.nationalite; const id=[m.pieceType,m.pieceNum].filter(Boolean).join(" "); if(m.pieceNum && c.idDoc!==id) upd.idDoc=id; if(Object.keys(upd).length) await S.db.collection("clients").doc(c.id).update(upd); }
         return true; }catch(x){ g("p_err").innerHTML='<div class="note bad">Enregistrement impossible. Vérifiez la connexion.</div>'; return false; }
