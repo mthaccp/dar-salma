@@ -347,6 +347,22 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
   .pp{display:grid;grid-template-columns:1fr 1fr;gap:5mm}.pp img{width:100%;max-height:120mm;object-fit:contain;border:.5px solid #888}
 }
 @media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(16px);opacity:.6}}}
+
+/* Finances : tableaux de bord étendus, sans changer les autres modules */
+.fin-visuals{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(280px,1fr);gap:16px;align-items:stretch}
+.fin-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0;display:grid;gap:12px;align-content:start}
+.fin-card h3{margin:0;color:var(--fg);font-size:.92rem;letter-spacing:0;text-transform:none}
+.fin-card .muted{color:var(--muted);font-size:.82rem}
+.fin-card .chart svg{max-height:310px}
+.fin-kpi-list{display:grid;gap:10px}
+.fin-kpi{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.fin-kpi:last-child{border-bottom:0}
+.fin-kpi span{color:var(--muted);font-size:.85rem}
+.fin-kpi b{font-variant-numeric:tabular-nums;text-align:right}
+.fin-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.fin-visuals .hbars{min-height:120px}
+@media(max-width:900px){.fin-visuals{grid-template-columns:1fr}}
+@media(max-width:640px){.fin-two{grid-template-columns:1fr}.fin-card{padding:13px}}
 </style>
 </head>
 <body>
@@ -383,12 +399,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=43"></script>
+<script src="firebase-config.js?v=44"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "43";
+const APP_VERSION = "44";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -800,6 +816,52 @@ function vFin(){
      + box("clean","clean","Chiffre d\'affaires par chambre",roomItems,"var(--c1)","Aucune nuit vendue ce mois-ci.")
      + box("due","coins","Dépenses par catégorie",catItems,"var(--k-due)","Aucune dépense ce mois-ci.")
      + '</div>';
+
+  // Visualisation complémentaire : données existantes uniquement, aucune écriture Firestore.
+  const months12 = Array.from({length:12},(_,i)=>{
+    const ym=addMonths(m,i-11), mi=Number(ym.slice(5))-1;
+    return {ym,lab:MCOURT[mi].replace(".",""),full:MOIS[mi]+" "+ym.slice(0,4),cur:ym===m,
+      s:stats(monthStart(ym),monthStart(nextMonth(ym)))};
+  });
+  const monthlySeries=[
+    {name:"Chiffre d'affaires",color:"var(--c1)",values:months12.map(x=>x.s.ca)},
+    {name:"Encaissé",color:"var(--k-arr)",values:months12.map(x=>x.s.enc)},
+    {name:"Dépenses",color:"var(--k-due)",values:months12.map(x=>x.s.dep)}
+  ];
+  const weeks=[];
+  for(let st=first,idx=1;st<=last;st=addDays(st,7),idx++){
+    const en=addDays(st,7)<addDays(last,1)?addDays(st,7):addDays(last,1);
+    const w=stats(st,en);
+    weeks.push({label:"S"+idx,value:w.enc,spend:w.dep,from:st,to:en,extra:fmtD(st)+" – "+fmtD(addDays(en,-1))});
+  }
+  const weekSeries=[
+    {name:"Encaissé",color:"var(--k-arr)",values:weeks.map(w=>w.value)},
+    {name:"Dépenses",color:"var(--k-due)",values:weeks.map(w=>w.spend)}
+  ];
+  const weeklyAxis=weeks.map(w=>({lab:w.label,full:w.extra,cur:false}));
+  const highestRoom=roomItems[0];
+  const biggestExpense=catItems[0];
+  const fmtGraph = n=>dtShort(n);
+  h += '<div class="fin-visuals">'
+    + '<section class="fin-card"><div><h3>Évolution financière sur 12 mois</h3><div class="muted">Chiffre d’affaires des nuitées, encaissements réellement reçus et dépenses</div></div>'
+    + chartBars(months12,monthlySeries,fmtGraph,{label:"Évolution financière sur 12 mois",tipFmt:v=>dt(Math.round(v))})
+    + '<div class="legend"><span><i style="background:var(--c1)"></i>Chiffre d’affaires</span><span><i style="background:var(--k-arr)"></i>Encaissé</span><span><i style="background:var(--k-due)"></i>Dépenses</span></div></section>'
+    + '<section class="fin-card"><div><h3>Synthèse du mois</h3><div class="muted">'+esc(MOIS[mo-1])+' '+y+' · les sommes encaissées peuvent concerner des séjours d’autres mois</div></div>'
+    + '<div class="fin-kpi-list">'
+    + '<div class="fin-kpi"><span>Nombre de paiements</span><b class="num">'+pays.length+'</b></div>'
+    + '<div class="fin-kpi"><span>Réservations avec solde restant</span><b class="num">'+unpaid.length+'</b></div>'
+    + '<div class="fin-kpi"><span>Solde total à encaisser</span><b class="num">'+dt(unpaidSum)+'</b></div>'
+    + '<div class="fin-kpi"><span>Chambre la plus contributrice</span><b>'+esc(highestRoom?highestRoom.label:"Aucune")+'</b></div>'
+    + '<div class="fin-kpi"><span>CA de cette chambre</span><b class="num">'+dt(highestRoom?highestRoom.value:0)+'</b></div>'
+    + '<div class="fin-kpi"><span>Principale catégorie de dépense</span><b>'+esc(biggestExpense?biggestExpense.label:"Aucune")+'</b></div>'
+    + '</div></section></div>';
+  h += '<div class="fin-two"><section class="fin-card"><div><h3>Encaissements et dépenses par semaine</h3><div class="muted">Répartition des flux réellement datés sur le mois sélectionné</div></div>'
+    + chartBars(weeklyAxis,weekSeries,fmtGraph,{label:"Flux hebdomadaires",tipFmt:v=>dt(Math.round(v))})
+    + '<div class="legend"><span><i style="background:var(--k-arr)"></i>Encaissé</span><span><i style="background:var(--k-due)"></i>Dépenses</span></div></section>'
+    + '<section class="fin-card"><div><h3>Comparaison du mois</h3><div class="muted">Flux de trésorerie, hors paiements futurs</div></div>'
+    + chartH([{label:"Encaissé",value:enc},{label:"Dépenses",value:dep}],v=>dt(Math.round(v)),"var(--c1)","Encaissements et dépenses")
+    + '<div class="fin-kpi"><span>Solde encaissé moins dépenses</span><b class="num" style="color:'+(enc-dep>=0?'var(--ok)':'var(--bad)')+'">'+dt(enc-dep)+'</b></div>'
+    + '</section></div>';
   return h;
 }
 
