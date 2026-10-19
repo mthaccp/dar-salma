@@ -389,12 +389,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=48"></script>
+<script src="firebase-config.js?v=49"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "48";
+const APP_VERSION = "49";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -733,7 +733,7 @@ function vPolice(){
   h += '<input class="search" id="polQ" type="search" placeholder="Rechercher un nom, un n° de passeport…" value="'+esc(S.polQ||"")+'">';
   const rows = list.map(b=>{ const c=client(b.clientId), ok=policeReady(b), tr=b.travelers||[];
     const who = ok ? tr.map(x=>[x.prenom,(x.nom||"").toUpperCase()].filter(Boolean).join(" ")).join(", ") : esc(c?c.name:"");
-    return '<div class="item"><span class="roomtag">'+esc(room(b.roomId)?.short||"?")+'</span><div class="grow"><div class="r1"><span class="t">'+esc(c?c.name:"Client")+'</span>'+(ok?'<span class="pill ok">✓ Remplie</span>':'<span class="pill bad">À remplir</span>')+'</div><div class="s">'+fmtD(b.policeIn||b.checkIn)+' → '+fmtD(b.policeOut||b.checkOut)+' · '+(b.adults!=null?b.adults:(b.guests||1))+' adulte(s)'+(ok?' · '+esc(who):'')+'</div></div><div class="ctrl"><button class="btn sm'+(ok?'':' primary')+'" data-act="pol-edit" data-id="'+b.id+'">'+(ok?'Modifier':'Remplir')+'</button>'+(ok?'<button class="btn sm" data-act="pol-print" data-id="'+b.id+'">Imprimer</button>':'')+'</div></div>'; }).join("");
+    return '<div class="item"><span class="roomtag">'+esc(room(b.roomId)?.short||"?")+'</span><div class="grow"><div class="r1"><span class="t">'+esc(c?c.name:"Client")+'</span>'+(ok?'<span class="pill ok">✓ Remplie</span>':'<span class="pill bad">À remplir</span>')+'</div><div class="s">'+fmtD(b.policeIn||b.checkIn)+' → '+fmtD(b.policeOut||b.checkOut)+' · '+(b.adults!=null?b.adults:(b.guests||1))+' adulte(s)'+(ok?' · '+esc(who):'')+'</div></div><div class="ctrl"><button class="btn sm'+(ok?'':' primary')+'" data-act="pol-edit" data-id="'+b.id+'">'+(ok?'Modifier':'Remplir')+'</button>'+(ok?'<button class="btn sm" data-act="pol-print" data-id="'+b.id+'">Imprimer</button><button class="btn sm" data-act="pol-pdf" data-id="'+b.id+'">PDF</button>':'')+'</div></div>'; }).join("");
   const printable = list.filter(policeReady);
   h += sec("due","card","Fiches de police",list.length,(printable.length>1?'<button class="btn sm ghost" data-act="pol-print-list">Tout imprimer ('+printable.length+')</button>':''), rows || '<div class="empty">'+(f==="todo"?'Toutes les fiches sont remplies.':'Aucune fiche dans cette liste.')+'</div>');
   return h;
@@ -997,6 +997,103 @@ async function printFiches(bookings){
 }
 window.addEventListener("afterprint", ()=>{ const a=$("#printArea"); if(a) a.innerHTML=""; });
 
+// PDF des fiches de police : tout est construit localement dans le navigateur.
+// La bibliothèque n'envoie ni les photos ni les renseignements à un service distant.
+let policePdfLoader=null;
+async function policePdfLib(){
+  if(window.jspdf && window.jspdf.jsPDF) return window.jspdf.jsPDF;
+  if(!policePdfLoader){
+    policePdfLoader=new Promise((resolve,reject)=>{
+      const el=document.createElement("script");
+      el.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+      el.crossOrigin="anonymous";
+      el.integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4D5S0dKKhjK67JFZmNL3kKPjEQ0YnE7N+YI1x2pqnJ9sqNR72w==";
+      el.onload=()=>window.jspdf?.jsPDF?resolve(window.jspdf.jsPDF):reject(new Error("Bibliothèque PDF indisponible"));
+      el.onerror=()=>reject(new Error("Chargement PDF impossible"));
+      document.head.appendChild(el);
+    }).catch(e=>{policePdfLoader=null;throw e;});
+  }
+  return policePdfLoader;
+}
+async function policePdfPhotos(bid){
+  if(!S.db) throw new Error("Base non connectée");
+  const snap=await S.db.collection("pieces").where("bookingId","==",bid).get({source:"server"});
+  return snap.docs.map(d=>d.data()).filter(p=>p.data && /^data:image\/(jpeg|jpg|png);base64,/i.test(p.data));
+}
+async function downloadPolicePdf(b){
+  try{
+    toast("Préparation du PDF…");
+    const [PDF,pics]=await Promise.all([policePdfLib(),policePdfPhotos(b.id)]);
+    if(!pics.length){toast("Ajoutez une photo de pièce d'identité avant de générer le PDF.");return;}
+    const pdf=new PDF({orientation:"portrait",unit:"mm",format:"a4",compress:true});
+    const width=210, height=297, margin=16, right=194;
+    const gray=[96,104,120],navy=[30,47,98];
+    const text=(str,x,y,max)=>pdf.text(String(str??""),x,y,max?{maxWidth:max}:undefined);
+    const header=(subtitle)=>{
+      pdf.setFillColor(...navy);pdf.rect(0,0,width,27,"F");
+      pdf.setTextColor(255,255,255);pdf.setFont("helvetica","bold");pdf.setFontSize(16);text("DAR SALMA",margin,13);
+      pdf.setFont("helvetica","normal");pdf.setFontSize(9);text(subtitle,margin,20);
+      pdf.setTextColor(25,34,64);
+    };
+    const row=(label,value,y)=>{
+      pdf.setFont("helvetica","bold");pdf.setFontSize(9);text(label,margin,y,56);
+      pdf.setFont("helvetica","normal");
+      const lines=pdf.splitTextToSize(String(value||"—"),112);
+      pdf.text(lines,76,y);const dh=Math.max(8,lines.length*4.5+3);
+      pdf.setDrawColor(222,220,212);pdf.line(margin,y+2.5,right,y+2.5);
+      return y+dh;
+    };
+    const list=travelersOf(b);
+    const rm=room(b.roomId);const details=[
+      ["Nom", t=>String(t.nom||"").toUpperCase()],
+      ["Prénom",t=>t.prenom],["Naissance",t=>[fdate(t.naissance),t.lieuNaissance].filter(Boolean).join(" à ")],
+      ["Nationalité",t=>t.nationalite],["Pièce d'identité",t=>[t.pieceType,t.pieceNum].filter(Boolean).join(" n° ")],
+      ["Délivrée le / à",t=>[fdate(t.pieceDate),t.pieceLieu].filter(Boolean).join(" à ")],
+      ["Date d'arrivée",()=>fdate(b.policeIn||b.checkIn)],["Date de départ",()=>fdate(b.policeOut||b.checkOut)],
+      ["Chambre",()=>rm?.name||""],["Venant de",()=>b.provenance],["Se rendant à",()=>b.destination],
+      ["Accompagné de",()=> (b.children?b.children+" enfant(s) de moins de 12 ans":"")+(b.babyBed?(b.children?", ":"")+"bébé":"")]
+    ];
+    list.forEach((t,i)=>{
+      if(i)pdf.addPage();
+      header("FICHE DE POLICE — Voyageur "+(i+1)+" / "+list.length);
+      let y=37;
+      pdf.setFontSize(10);pdf.setFont("helvetica","bold");
+      text("Maison d'hôtes Dar Salma",margin,y);y+=8;
+      for(const [label,get] of details)y=row(label,get(t),y);
+      y=Math.max(y+14,212);
+      pdf.setDrawColor(140,145,155);pdf.line(margin,y+22,95,y+22);pdf.line(112,y+22,right,y+22);
+      pdf.setFontSize(9);pdf.setTextColor(...gray);
+      text("Signature du voyageur",margin,y+28);text("Cachet et signature de l'hôte",112,y+28);
+    });
+    pdf.addPage();header("COPIES DES PIÈCES D'IDENTITÉ");
+    let y=37;
+    for(let i=0;i<pics.length;i++){
+      const p=pics[i];
+      const props=pdf.getImageProperties(p.data);
+      const maxW=175,maxH=103;
+      const scale=Math.min(maxW/props.width,maxH/props.height);
+      const w=props.width*scale,h=props.height*scale;
+      if(y+h+17>height-15){pdf.addPage();header("COPIES DES PIÈCES D'IDENTITÉ (suite)");y=37;}
+      pdf.setFont("helvetica","bold");pdf.setFontSize(9);pdf.setTextColor(25,34,64);
+      text("Document "+(i+1)+" / "+pics.length,margin,y);y+=5;
+      pdf.addImage(p.data,props.fileType||"JPEG",margin,y,w,h,undefined,"FAST");
+      y+=h+12;
+    }
+    const pages=pdf.getNumberOfPages();
+    for(let p=1;p<=pages;p++){
+      pdf.setPage(p);pdf.setFont("helvetica","normal");pdf.setFontSize(8);pdf.setTextColor(...gray);
+      text("Dar Salma — Document confidentiel",margin,289);
+      pdf.text(p+" / "+pages,right,289,{align:"right"});
+    }
+    const filename="Dar-Salma-Fiche-Police-"+String(b.checkIn||today()).replace(/[^0-9-]/g,"")+"-"+String(b.id||"").replace(/[^a-z0-9-]/gi,"").slice(0,16)+".pdf";
+    pdf.save(filename);toast("PDF généré avec "+pics.length+" photo(s).");
+  }catch(e){
+    console.error("PDF fiche de police",e);
+    toast("PDF impossible : vérifiez la connexion et réessayez.");
+  }
+}
+
+
 function policeSheet(b0, after){
   const b = JSON.parse(JSON.stringify(b0)); let list = travelersOf(b);
   const pieceOpt = v => ["Passeport","CIN","Carte de séjour","Autre"].map(x=>opt(x,x,v||"Passeport")).join("");
@@ -1010,7 +1107,7 @@ function policeSheet(b0, after){
     + (S.canWrite?'<button type="button" class="btn sm" id="p_add" style="justify-self:start">+ Ajouter un voyageur</button>':'')
     + '<div><h3>Copies des pièces d\'identité</h3><div class="pics" id="p_pics"><span class="s" style="color:var(--muted);font-size:.85rem">Chargement…</span></div>'
     + (S.canWrite?'<div class="row" style="margin-top:8px"><label class="btn sm upl">'+CAM_SVG+'Prendre une photo<input type="file" accept="image/*" capture="environment" id="p_cam" hidden></label><label class="btn sm upl">'+UP_SVG+'Choisir une photo<input type="file" accept="image/*" multiple id="p_file" hidden></label></div>':'')+'</div>'
-    + '<div id="p_err"></div><div class="row spread"><button type="button" class="btn" id="p_print">Imprimer</button><button class="btn primary" type="submit"'+dis()+'>Enregistrer</button></div></form>', sh=>{
+    + '<div id="p_err"></div><div class="row spread"><div class="row"><button type="button" class="btn" id="p_print">Imprimer</button><button type="button" class="btn" id="p_pdf">Générer PDF avec photos</button></div><button class="btn primary" type="submit"'+dis()+'>Enregistrer</button></div></form>', sh=>{
     const g=id=>$("#"+id,sh);
     const paint=()=>{ g("p_list").innerHTML=draw(); };
     paint();
@@ -1040,6 +1137,7 @@ function policeSheet(b0, after){
         return true; }catch(x){ g("p_err").innerHTML='<div class="note bad">Enregistrement impossible. Vérifiez la connexion.</div>'; return false; }
     };
     g("p_in").addEventListener("change",()=>{ if(g("p_out").value && g("p_out").value<=g("p_in").value) g("p_out").value=addDays(g("p_in").value,1); });
+    g("p_pdf").addEventListener("click",async()=>{if(g("p_out").value && g("p_in").value && g("p_out").value<=g("p_in").value){g("p_err").innerHTML='<div class="note bad">La date de départ doit être après l\'arrivée.</div>';return;}const btn=g("p_pdf");btn.disabled=true;try{if(S.canWrite){if(!await persist())return;}else collect();await downloadPolicePdf(b);}finally{btn.disabled=false;}});
     g("p_print").addEventListener("click", async ()=>{ if(g("p_out").value && g("p_in").value && g("p_out").value<g("p_in").value){ g("p_err").innerHTML='<div class="note bad">La date de départ doit être après l\'arrivée.</div>'; return; } if(S.canWrite) await persist(); else collect(); printFiches([b]); });
     g("pf").addEventListener("submit", async e=>{ e.preventDefault(); if(await persist()){ closeSheet(); toast("Fiche de police enregistrée"); if(after) after(); } });
   });
@@ -1397,6 +1495,7 @@ document.addEventListener("click", async e=>{
   if(a==="pol-filter"){ S.polFilter=el.dataset.f; return render(); }
   if(a==="pol-edit"){ const b=S.bookings.find(x=>x.id===id); if(b) policeSheet(b); return; }
   if(a==="pol-print"){ const b=S.bookings.find(x=>x.id===id); if(b) printFiches([b]); return; }
+  if(a==="pol-pdf"){ const b=S.bookings.find(x=>x.id===id); if(b) downloadPolicePdf(b); return; }
   if(a==="pol-print-list"){ const t=today(), f=S.polFilter||"todo"; let l=activeBookings().filter(policeReady); if(f==="today") l=l.filter(b=>b.checkIn===t); return printFiches(l.sort((x,y)=>x.checkIn.localeCompare(y.checkIn))); }
   if(a==="goto-set"){ S.tab="set"; store.set("ds_tab","set"); render(); window.scrollTo(0,0); return; }
   if(a==="logout-btn"){ $("#logout").click(); return; }
