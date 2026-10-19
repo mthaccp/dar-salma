@@ -389,12 +389,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=50"></script>
+<script src="firebase-config.js?v=51"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "50";
+const APP_VERSION = "51";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -1021,23 +1021,12 @@ async function policePdfPhotos(bid){
 }
 async function downloadPolicePdf(b){
   try{
-    toast("Préparation du PDF sur une page…");
+    toast("Préparation du PDF A4…");
     const [PDF,pics]=await Promise.all([policePdfLib(),policePdfPhotos(b.id)]);
     if(!pics.length){toast("Ajoutez une photo de pièce d'identité avant de générer le PDF.");return;}
     const pdf=new PDF({orientation:"portrait",unit:"mm",format:"a4",compress:true});
-    const margin=12, right=198, pageBottom=283, navy=[30,47,98];
-    const travelers=travelersOf(b),rm=room(b.roomId),settings=S.settings||{};
-    // Mesurer le document en unités virtuelles, puis réduire l'ensemble
-    // proportionnellement pour tenir sur UNE unique page A4.
-    const entries=[];
-    const detailRows=[
-      ["Nom",t=>String(t.nom||"").toUpperCase()],
-      ["Prénom",t=>t.prenom],
-      ["Naissance",t=>[fdate(t.naissance),t.lieuNaissance].filter(Boolean).join(" à ")],
-      ["Nationalité",t=>t.nationalite],
-      ["Pièce d'identité",t=>[t.pieceType,t.pieceNum].filter(Boolean).join(" n° ")],
-      ["Délivrée le / à",t=>[fdate(t.pieceDate),t.pieceLieu].filter(Boolean).join(" à ")]
-    ];
+    const margin=13, pageRight=197, navy=[30,47,98], muted=[96,104,120];
+    const travelers=travelersOf(b), rm=room(b.roomId);
     const shared=[
       ["Arrivée",fdate(b.policeIn||b.checkIn)],
       ["Départ",fdate(b.policeOut||b.checkOut)],
@@ -1046,76 +1035,84 @@ async function downloadPolicePdf(b){
       ["Se rendant à",b.destination||""],
       ["Accompagnants",(b.children?b.children+" enfant(s) de moins de 12 ans":"")+(b.babyBed?(b.children?", ":"")+"bébé":"")]
     ];
-    // La hauteur des blocs augmente avec le nombre de voyageurs/photos.
-    const textRows=travelers.map((t,i)=>({
-      title:"Voyageur "+(i+1)+" / "+travelers.length,
-      rows:detailRows.map(([label,fn])=>[label,fn(t)])
-    }));
-    const photoCols=pics.length===1?1:2;
-    const photoW=(186-(photoCols-1)*6)/photoCols;
-    const desiredImgH=photoCols===1?67:55;
-    const photoRows=Math.ceil(pics.length/photoCols);
-    const virtualHeight=29+shared.length*6+6+textRows.length*(10+detailRows.length*6+11)+12+photoRows*(desiredImgH+9)+12;
-    const scale=Math.min(1, (pageBottom-28)/virtualHeight);
-    // Échelle globale : coordonnées et textes sont mis à l'échelle ensemble.
-    const sx=x=>margin+(x-margin)*scale, sy=y=>30+(y-30)*scale;
-    const fs=n=>Math.max(3.7,n*scale);
-    const txt=(value,x,y,opts)=>{
-      pdf.text(String(value??"—"),sx(x),sy(y),opts||undefined);
+    const fields=t=>[
+      ["Nom",String(t.nom||"").toUpperCase()],
+      ["Prénom",t.prenom],
+      ["Naissance",[fdate(t.naissance),t.lieuNaissance].filter(Boolean).join(" à ")],
+      ["Nationalité",t.nationalite],
+      ["Pièce d'identité",[t.pieceType,t.pieceNum].filter(Boolean).join(" n° ")],
+      ["Délivrée le / à",[fdate(t.pieceDate),t.pieceLieu].filter(Boolean).join(" à ")]
+    ];
+    // Calculer toutes les dimensions avant de dessiner, pour produire une SEULE feuille.
+    const cols=pics.length===1?1:2, gap=7, availableW=184;
+    const photoW=(availableW-(cols-1)*gap)/cols, photoRows=Math.ceil(pics.length/cols);
+    const photoHeight=pics.length===1?118:86;
+    const sharedRows=Math.ceil(shared.length/2), travelerRows=3;
+    const virtualTop=35, sectionH=sharedRows*11+14;
+    const travelersH=travelers.length*(travelerRows*11+14);
+    const virtualPhotos=photoRows*(photoHeight+9);
+    const total=sectionH+travelersH+15+virtualPhotos;
+    const scale=Math.min(1,235/total);
+    const X=x=>margin+(x-margin)*scale, Y=y=>virtualTop+(y-virtualTop)*scale;
+    const T=(value,x,y)=>pdf.text(String(value??"—"),X(x),Y(y));
+    const F=n=>Math.max(4,n*scale);
+    const sectionTitle=(title,y)=>{
+      pdf.setFillColor(239,241,247);
+      pdf.roundedRect(X(margin),Y(y-6),availableW*scale,9*scale,2*scale,2*scale,"F");
+      pdf.setTextColor(...navy);pdf.setFont("helvetica","bold");pdf.setFontSize(F(10.5));
+      T(title,margin+3,y);return y+11;
     };
-    pdf.setFillColor(...navy);pdf.rect(0,0,210,26,"F");
-    pdf.setTextColor(255,255,255);pdf.setFont("helvetica","bold");pdf.setFontSize(15);
-    pdf.text("DAR SALMA",margin,11);
+    const cell=(label,value,x,y)=>{
+      pdf.setTextColor(...muted);pdf.setFont("helvetica","bold");pdf.setFontSize(F(8));
+      T(label,x,y);
+      pdf.setTextColor(25,34,64);pdf.setFont("helvetica","normal");pdf.setFontSize(F(9.5));
+      const maxWidth=55*scale, raw=String(value||"—");
+      const lines=pdf.splitTextToSize(raw,maxWidth);
+      // Deux lignes suffisent généralement ; réduire la police plutôt que couper la donnée.
+      if(lines.length>2){
+        const fontSize=Math.max(4,9.5*scale*2/lines.length);
+        pdf.setFontSize(fontSize);
+      }
+      pdf.text(raw,X(x+34),Y(y),{maxWidth,maxHeight:9*scale});
+    };
+    const drawPairs=(pairs,y)=>{
+      for(let i=0;i<pairs.length;i+=2){
+        cell(pairs[i][0],pairs[i][1],margin,y);
+        if(pairs[i+1])cell(pairs[i+1][0],pairs[i+1][1],margin+94,y);
+        y+=11;
+      }
+      return y;
+    };
+    pdf.setFillColor(...navy);pdf.rect(0,0,210,27,"F");
+    pdf.setTextColor(255,255,255);pdf.setFont("helvetica","bold");pdf.setFontSize(17);
+    pdf.text("DAR SALMA",margin,12);
     pdf.setFont("helvetica","normal");pdf.setFontSize(9);
-    pdf.text("FICHE DE POLICE — DOCUMENTS D'IDENTITÉ",margin,19);
-    pdf.setTextColor(25,34,64);
-    let y=34;
-    pdf.setFont("helvetica","bold");pdf.setFontSize(fs(10));
-    txt("Informations du séjour",margin,y);y+=8;
-    const val=(label,value,x,yy,fieldW=45)=>{
-      pdf.setFont("helvetica","bold");pdf.setFontSize(fs(8));
-      txt(label,x,yy);
-      pdf.setFont("helvetica","normal");
-      let result=String(value||"—");
-      // Garder chaque renseignement dans sa case sans déborder sur le suivant.
-      while(result.length>1 && pdf.getTextWidth(result)>(fieldW*scale))result=result.slice(0,-2)+"…";
-      txt(result,x+35,yy);
-    };
-    for(const [label,value] of shared){val(label,value,margin,y,144);y+=6;}
-    y+=4;
-    textRows.forEach((section,i)=>{
-      pdf.setFillColor(241,243,248);
-      pdf.roundedRect(sx(margin),sy(y-5),186*scale,7*scale,1.5*scale,1.5*scale,"F");
-      pdf.setFont("helvetica","bold");pdf.setFontSize(fs(9));
-      txt(section.title,margin+3,y);y+=9;
-      for(const [label,value] of section.rows){val(label,value,margin,y,144);y+=6;}
-      pdf.setDrawColor(165,169,177);
-      pdf.line(sx(margin),sy(y+4),sx(95),sy(y+4));
-      pdf.line(sx(112),sy(y+4),sx(right),sy(y+4));
-      pdf.setFont("helvetica","normal");pdf.setFontSize(fs(7));
-      txt("Signature du voyageur",margin,y+8);
-      txt("Signature de l'hôte",112,y+8);
-      y+=16;
+    pdf.text("FICHE DE POLICE — IDENTITÉ ET DOCUMENTS",margin,20);
+    let y=virtualTop;
+    y=sectionTitle("Informations du séjour",y);
+    y=drawPairs(shared,y)+3;
+    travelers.forEach((traveler,i)=>{
+      y=sectionTitle("Voyageur "+(i+1)+" / "+travelers.length,y);
+      y=drawPairs(fields(traveler),y)+3;
     });
-    y+=2;
-    pdf.setFont("helvetica","bold");pdf.setFontSize(fs(10));
-    txt("Copies des pièces d'identité ("+pics.length+")",margin,y);y+=8;
+    y=sectionTitle("Copies des pièces d'identité ("+pics.length+")",y)+2;
     pics.forEach((p,i)=>{
-      const col=i%photoCols,row=Math.floor(i/photoCols);
-      const x=margin+col*(photoW+6),py=y+row*(desiredImgH+9);
+      const col=i%cols,row=Math.floor(i/cols);
+      const x=margin+col*(photoW+gap),py=y+row*(photoHeight+9);
       const prop=pdf.getImageProperties(p.data);
-      const ratio=Math.min(photoW/prop.width,desiredImgH/prop.height);
+      const ratio=Math.min(photoW/prop.width,photoHeight/prop.height);
       const w=prop.width*ratio,h=prop.height*ratio;
-      pdf.setFont("helvetica","normal");pdf.setFontSize(fs(7));
-      txt("Document "+(i+1),x,py);
-      pdf.addImage(p.data,prop.fileType||"JPEG",sx(x),sy(py+3),w*scale,h*scale,undefined,"FAST");
+      pdf.setFont("helvetica","bold");pdf.setFontSize(F(7.5));pdf.setTextColor(...muted);
+      T("Document "+(i+1),x,py);
+      const imgX=x+(photoW-w)/2;
+      pdf.addImage(p.data,prop.fileType||"JPEG",X(imgX),Y(py+4),w*scale,h*scale,undefined,"FAST");
     });
-    pdf.setFont("helvetica","normal");pdf.setFontSize(7);pdf.setTextColor(96,104,120);
+    pdf.setFont("helvetica","normal");pdf.setFontSize(7);pdf.setTextColor(...muted);
     pdf.text("Dar Salma — Document confidentiel",margin,290);
-    pdf.text("1 / 1",right,290,{align:"right"});
+    pdf.text("1 / 1",pageRight,290,{align:"right"});
     const filename="Dar-Salma-Fiche-Police-"+String(b.checkIn||today()).replace(/[^0-9-]/g,"")+"-"+String(b.id||"").replace(/[^a-z0-9-]/gi,"").slice(0,16)+".pdf";
     pdf.save(filename);
-    toast("PDF A4 généré sur une seule page.");
+    toast("PDF A4 téléchargé sur une seule page.");
   }catch(e){
     console.error("PDF fiche de police",e);
     toast("PDF impossible : vérifiez la connexion et réessayez.");
