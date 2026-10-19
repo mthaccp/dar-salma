@@ -398,12 +398,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=52"></script>
+<script src="firebase-config.js?v=53"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "52";
+const APP_VERSION = "53";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -690,7 +690,7 @@ function vCal(){
   let h = '<div class="row spread"><h2>'+MOIS[sd.getMonth()].replace(/^./,c=>c.toUpperCase())+(sd.getMonth()!==ed.getMonth()?' – '+MOIS[ed.getMonth()]:'')+' '+ed.getFullYear()+'</h2><div class="row"><button class="btn sm" data-act="cal-prev" aria-label="Semaine précédente">←</button><button class="btn sm" data-act="cal-today">Aujourd\'hui</button><button class="btn sm" data-act="cal-next" aria-label="Semaine suivante">→</button></div></div>';
   h += '<div class="cal"><table'+(mob?' class="m"':'')+'><thead><tr><th class="room">'+(mob?'':'Chambre')+'</th>'+ds.map(d=>{const x=parse(d),we=x.getDay()===0||x.getDay()===6;return '<th class="'+(d===t?'today ':'')+(we?'we':'')+'">'+JOURS[x.getDay()]+'<span class="d">'+x.getDate()+'</span></th>';}).join("")+'</tr></thead><tbody>';
   S.rooms.forEach(r=>{
-    h += '<tr'+(r.wholeHouse?' class="house"':'')+'><th class="room">'+(S.canWrite?'<button data-act="edit-room" data-id="'+r.id+'" title="Modifier '+esc(r.name)+'">'+esc(mob?(r.short||r.name):r.name)+'<svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg></button>':esc(mob?(r.short||r.name):r.name))+'</th>';
+    h += '<tr'+(r.wholeHouse?' class="house"':'')+'><th class="room">'+esc(mob?(r.short||r.name):r.name)+'</th>';
     ds.forEach(d=>{
       const b = occupying(r.id,d);
       const blocked = !b && (r.wholeHouse ? units().some(u=>occupying(u.id,d)) : false);
