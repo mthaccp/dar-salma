@@ -389,12 +389,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=47"></script>
+<script src="firebase-config.js?v=48"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "47";
+const APP_VERSION = "48";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -1008,6 +1008,8 @@ function policeSheet(b0, after){
     + '<div class="g2"><label>Venant de (ville, pays)<input id="p_from" value="'+esc(b.provenance||"")+'"></label><label>Se rendant à<input id="p_to" value="'+esc(b.destination||"")+'"></label></div>'
     + '<div id="p_list" style="display:grid;gap:14px"></div>'
     + (S.canWrite?'<button type="button" class="btn sm" id="p_add" style="justify-self:start">+ Ajouter un voyageur</button>':'')
+    + '<div><h3>Copies des pièces d\'identité</h3><div class="pics" id="p_pics"><span class="s" style="color:var(--muted);font-size:.85rem">Chargement…</span></div>'
+    + (S.canWrite?'<div class="row" style="margin-top:8px"><label class="btn sm upl">'+CAM_SVG+'Prendre une photo<input type="file" accept="image/*" capture="environment" id="p_cam" hidden></label><label class="btn sm upl">'+UP_SVG+'Choisir une photo<input type="file" accept="image/*" multiple id="p_file" hidden></label></div>':'')+'</div>'
     + '<div id="p_err"></div><div class="row spread"><button type="button" class="btn" id="p_print">Imprimer</button><button class="btn primary" type="submit"'+dis()+'>Enregistrer</button></div></form>', sh=>{
     const g=id=>$("#"+id,sh);
     const paint=()=>{ g("p_list").innerHTML=draw(); };
@@ -1017,8 +1019,21 @@ function policeSheet(b0, after){
     g("p_list").addEventListener("click", e=>{ const i=e.target.dataset.trm; if(i!=null){ list.splice(Number(i),1); paint(); } });
     if(g("p_add")) g("p_add").addEventListener("click", ()=>{ list.push({nom:"",prenom:"",pieceType:"Passeport"}); paint(); });
     const collect = () => { b.travelers = list.map(t=>{ const o={}; TF.forEach(([k])=>o[k]=String(t[k]||"").trim()); return o; }); b.provenance=g("p_from").value.trim(); b.destination=g("p_to").value.trim(); b.policeIn=g("p_in").value||b.checkIn; b.policeOut=g("p_out").value||b.checkOut; };
+    let pics = [];
+    const drawPics = () => { const el=g("p_pics"); if(!el) return; const vis=pics.filter(x=>!x.del);
+      el.innerHTML = vis.length ? vis.map(x=>'<div class="pic" data-view="'+pics.indexOf(x)+'" role="button" tabindex="0" aria-label="Voir la photo"><img src="'+x.data+'" alt="">'+(x.saved?'':'<span class="nw">À enregistrer</span>')+(S.canWrite?'<button type="button" class="x" data-rm="'+pics.indexOf(x)+'" aria-label="Retirer la photo">×</button>':'')+'</div>').join("") : '<span class="s" style="color:var(--muted);font-size:.85rem">Aucune photo. Prenez en photo le passeport ou la CIN de chaque voyageur.</span>'; };
+    loadPieces("bookingId", b.id).then(l=>{ pics=l.concat(pics); drawPics(); });
+    g("p_pics").addEventListener("click", e=>{ const rm=e.target.closest("[data-rm]"); if(rm){ e.stopPropagation(); const x=pics[Number(rm.dataset.rm)]; if(x.saved) x.del=true; else pics.splice(Number(rm.dataset.rm),1); drawPics(); return; } const v=e.target.closest("[data-view]"); if(v) viewPhoto(pics[Number(v.dataset.view)].data); });
+    const addFiles = async files => { for(const f of files){ try{ pics.push({id:uid(), data:await compressImage(f), saved:false}); drawPics(); }catch(x){ toast("Photo illisible, réessayez"); } } };
+    if(g("p_cam")) g("p_cam").addEventListener("change", e=>{ addFiles([...e.target.files]); e.target.value=""; });
+    if(g("p_file")) g("p_file").addEventListener("change", e=>{ addFiles([...e.target.files]); e.target.value=""; });
+    const savePics = async () => { let ok=true; for(const x of pics){ try{
+        if(x.del && x.saved){ await S.db.collection("pieces").doc(x.id).delete(); x.gone=true; }
+        else if(!x.saved && !x.del){ await S.db.collection("pieces").doc(x.id).set({bookingId:b.id, clientId:b.clientId, data:x.data, createdAt:new Date().toISOString()}); x.saved=true; }
+      }catch(e){ ok=false; } } pics=pics.filter(x=>!x.gone && !(x.del && !x.saved)); drawPics(); if(!ok) toast("Une photo n'a pas pu être enregistrée"); };
     const persist = async () => {
       collect();
+      if(pics.some(x=>!x.saved||x.del)){ toast("Enregistrement des photos…"); await savePics(); }
       try{ await S.db.collection("bookings").doc(b.id).update({travelers:b.travelers, provenance:b.provenance, destination:b.destination, policeIn:b.policeIn, policeOut:b.policeOut});
         const m=b.travelers[0], c=client(b.clientId);
         if(c && m){ const upd={}; if(m.nationalite && !c.nationality) upd.nationality=m.nationalite; const id=[m.pieceType,m.pieceNum].filter(Boolean).join(" "); if(m.pieceNum && c.idDoc!==id) upd.idDoc=id; if(Object.keys(upd).length) await S.db.collection("clients").doc(c.id).update(upd); }
