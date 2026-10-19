@@ -249,7 +249,10 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 .pill.occ{background:color-mix(in srgb,var(--k-out) 14%,var(--surface));color:var(--k-out)}
 .roomtag.occ{background:var(--k-out);color:#fff}
 .ctrl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex:none;max-width:60%}
-.sec.slim>.sh{border-bottom:none}
+.sec.slim>.sh{border-bottom:none;flex-wrap:wrap!important;row-gap:4px}
+.sec.slim>.sh h3{flex:0 1 auto}
+.sec.slim .emp{flex:1 1 160px;text-align:right}
+@media (max-width:760px){.sec.slim .emp{text-align:left}}
 .sec .emp{color:var(--muted);font-size:.86rem;font-weight:500;margin-left:auto}
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));background:var(--surface)}
 .tile{background:var(--surface);box-shadow:inset -1px -1px 0 var(--line);padding:10px 12px;display:grid;grid-template-columns:auto 1fr;grid-template-areas:"tag name" "tag sub" "ctrl ctrl";column-gap:10px;row-gap:2px;align-content:start;min-width:0}
@@ -279,6 +282,8 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 .subtabs button{border:none;background:none;padding:10px 14px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;display:inline-flex;align-items:center;gap:6px}
 .subtabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .subtabs .cnt{background:var(--bad);color:#fff;border-radius:999px;font-size:.7rem;padding:1px 7px}
+.emptybig{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:22px;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.emptybig b{display:block;font-size:1.05rem;margin-bottom:4px}.emptybig span{color:var(--muted);font-size:.9rem}
 .r1{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .r1 .t{min-width:0}
 .sm-only{display:none}
@@ -384,12 +389,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=45"></script>
+<script src="firebase-config.js?v=47"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "45";
+const APP_VERSION = "47";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -590,10 +595,11 @@ function vJour(){
   const dirty = units().filter(r=>roomState(r)==="a_nettoyer").length, insideN = units().filter(r=>roomState(r)==="occupee").length;
   let h = '<div class="row spread"><h2>'+fmtLong(t).replace(/^./,c=>c.toUpperCase())+'</h2><button class="btn primary hm" data-act="new-booking"'+(S.canWrite?'':' disabled')+'>+ Réservation</button></div>';
   const soon = upcomingArrivals(24);
+  const cd = b => { const hrs=(arrivalAt(b)-Date.now())/3600e3; return hrs>0&&hrs<=24 ? '<b style="color:'+(hrs<=12?'var(--bad)':'var(--k-rem)')+'">arrivée '+inHours(b)+' ('+(b.arrivalTime||"14:00")+')</b>' : 'attendu à '+(b.arrivalTime||"14:00"); };
   const opts = activeBookings().filter(isOption).sort((a,b)=>String(a.depositBy||a.checkIn).localeCompare(String(b.depositBy||b.checkIn)));
-  if(soon.length || opts.length){
-    h += (soon.length && opts.length) ? '<div class="cols">' : '<div class="colstack">';
-    if(soon.length) h += sec("rem","bell","Rappels · arrivées sous 24 h",soon.length,'<button class="btn sm ghost" data-act="ics-all">Ajouter au calendrier</button>',
+  if(opts.length){
+    h += '<div class="colstack">';
+    if(false) h += sec("rem","bell","Rappels · arrivées sous 24 h",soon.length,'<button class="btn sm ghost" data-act="ics-all">Ajouter au calendrier</button>',
       soon.map(b=>{ const hrs=(arrivalAt(b)-Date.now())/3600e3; return bookingItem(b, '<b style="color:'+(hrs<=12?'var(--bad)':'var(--k-rem)')+'">Arrivée '+inHours(b)+' ('+(b.arrivalTime||"14:00")+')</b>'); }).join(""));
     if(opts.length) h += sec("pay","card","Acomptes en attente",opts.length,"",opts.map(b=>{ const due=Math.max(0,depositDue(b)-paid(b)); return bookingItem(b, '<b style="color:'+(optionLate(b)?'var(--bad)':'var(--accent)')+'">'+(due>0?'Acompte '+dt(due):'Acompte reçu, à confirmer')+(b.depositBy?(optionLate(b)?' · en retard (avant le '+fmtD(b.depositBy)+')':' · avant le '+fmtD(b.depositBy)):'')+'</b>'); }).join(""));
     h += '</div>';
@@ -623,8 +629,8 @@ function vJour(){
     }).join(""):'<div class="empty">Aucune chambre. Ajoutez-les dans Finances › Chambres.</div>');
   h += '<div class="cols"><div class="colstack">';
   const arrived = arr.filter(b=>b.arrivedAt).length;
-  h += sec("arr","in","Arrivées aujourd\'hui"+(arr.length?' · '+arrived+'/'+arr.length+' arrivé'+(arrived>1?'s':''):''),arr.length,(arr.length?'<button class="btn sm ghost" data-act="goto-police">Fiches de police</button>':''), arr.length?arr.map(b=>{ const late=!b.arrivedAt && Date.now()>arrivalAt(b).getTime()+3600e3; return bookingItem(b, (policeReady(b)?'':'<span style="color:var(--bad);font-weight:600">fiche de police à remplir</span> · ')+(b.arrivedAt?'':(late?'<b style="color:var(--warn)">attendu à '+(b.arrivalTime||"14:00")+', pas encore arrivé</b>':'attendu à '+(b.arrivalTime||"14:00"))), arriveBtn(b)); }).join(""):'<div class="empty">Aucune arrivée aujourd\'hui.</div>');
-  if(arrTom.length) h += sec("tom","cal","Arrivées demain",arrTom.length,"", arrTom.map(b=>bookingItem(b)).join(""));
+  h += sec("arr","in","Arrivées aujourd\'hui"+(arr.length?' · '+arrived+'/'+arr.length+' arrivé'+(arrived>1?'s':''):''),arr.length,(arr.length?'<button class="btn sm ghost" data-act="goto-police">Fiches de police</button>':''), arr.length?arr.map(b=>{ const late=!b.arrivedAt && Date.now()>arrivalAt(b).getTime()+3600e3; return bookingItem(b, (policeReady(b)?'':'<span style="color:var(--bad);font-weight:600">fiche de police à remplir</span> · ')+(b.arrivedAt?'':(late?'<b style="color:var(--warn)">attendu à '+(b.arrivalTime||"14:00")+', pas encore arrivé</b>':cd(b))), arriveBtn(b)); }).join(""):'<div class="empty">Aucune arrivée aujourd\'hui.</div>');
+  if(arrTom.length) h += sec("tom","bell","Arrivées demain · rappels",arrTom.length,'<button class="btn sm ghost" data-act="ics-all">Ajouter au calendrier</button>', arrTom.map(b=>bookingItem(b, (policeReady(b)?'':'<span style="color:var(--bad);font-weight:600">fiche de police à remplir</span> · ')+cd(b))).join(""));
   const departed = dep.filter(b=>b.departedAt).length;
   h += sec("out","out","Départs aujourd\'hui"+(dep.length?' · '+departed+'/'+dep.length+' parti'+(departed>1?'s':''):''),dep.length,"", dep.length?dep.map(b=>bookingItem(b, b.departedAt?'':'départ avant '+(S.settings.checkoutTime||"12:00"), departBtn(b))).join(""):'<div class="empty">Aucun départ aujourd\'hui.</div>');
   const wk = activeBookings().filter(b=>b.checkIn>tom && b.checkIn<=addDays(t,7)).sort((a,b)=>a.checkIn.localeCompare(b.checkIn));
@@ -786,6 +792,10 @@ function vFin(){
   const unpaid = activeBookings().filter(b=>balance(b)>0 && (inM(b.checkIn) || (b.checkIn<m+"-01" && b.checkOut>=m+"-01"))).sort((a,b)=>a.checkIn.localeCompare(b.checkIn));
   const unpaidSum = unpaid.reduce((t,b)=>t+balance(b),0);
   const dueBody = unpaid.length ? unpaid.map(b=>bookingItem(b)).join("") : '<div class="empty">Tout est encaissé pour ce mois.</div>';
+  if(!pays.length && !exps.length && !unpaid.length){
+    h += '<div class="emptybig"><div><b>Aucun mouvement en '+esc(MOIS[mo-1])+' '+y+'</b><span>Les paiements s\'ajoutent depuis une réservation (partie Paiements). Les dépenses avec le bouton + Dépense.</span></div><div class="row">'+(S.canWrite?'<button class="btn" data-act="new-expense">+ Dépense</button><button class="btn primary" data-act="new-booking">+ Réservation</button>':'')+'</div></div>';
+    return h;
+  }
   h += '<div class="cols3">'
      + sec("arr","card","Paiements reçus",pays.length,(pays.length?'<b class="num" style="color:var(--k-arr)">'+dt(enc)+'</b>':''), payBody)
      + sec("rem","coins","Reste à encaisser",unpaid.length,(unpaid.length?'<b class="num" style="color:var(--k-rem)">'+dt(unpaidSum)+'</b>':''), dueBody)
@@ -795,7 +805,7 @@ function vFin(){
   const methItems = Object.entries(byMeth).map(([k,v])=>({label:k,value:v})).sort((a,b)=>b.value-a.value);
   const catItems = Object.entries(byCat).map(([k,v])=>({label:k,value:v})).sort((a,b)=>b.value-a.value);
   const roomItems = S.rooms.map(r=>{ let v=0,n=0; activeBookings().filter(b=>b.roomId===r.id).forEach(b=>{ const k=nightsIn(b,first,addDays(last,1)); n+=k; v+=k*perNight(b); }); return {label:r.name,value:v,extra:n+" nuit"+(n>1?"s":"")}; }).filter(i=>i.value>0).sort((a,b)=>b.value-a.value);
-  const box = (k,icon,t,items,col,emptyMsg) => '<section class="sec" style="--sc:var(--k-'+k+')"><div class="sh"><svg viewBox="0 0 24 24" aria-hidden="true">'+SEC_ICONS[icon]+'</svg><h3>'+t+'</h3></div><div style="padding:12px 14px">'+(items.length?chartH(items, v=>dt(Math.round(v)), col, t):'<div class="s" style="color:var(--muted);font-size:.86rem">'+emptyMsg+'</div>')+'</div></section>';
+  const box = (k,icon,t,items,col,emptyMsg) => !items.length ? sec(k,icon,t,0,"",'<div class="empty">'+emptyMsg+'</div>') : '<section class="sec" style="--sc:var(--k-'+k+')"><div class="sh"><svg viewBox="0 0 24 24" aria-hidden="true">'+SEC_ICONS[icon]+'</svg><h3>'+t+'</h3></div><div style="padding:12px 14px">'+(items.length?chartH(items, v=>dt(Math.round(v)), col, t):'<div class="s" style="color:var(--muted);font-size:.86rem">'+emptyMsg+'</div>')+'</div></section>';
   const weeks=[]; for(let st=first,idx=1;st<=last;st=addDays(st,7),idx++){ const en=addDays(st,7)<addDays(last,1)?addDays(st,7):addDays(last,1); const w=stats(st,en); weeks.push({lab:"S"+idx,full:"Semaine "+idx+" ("+fmtD(st)+" – "+fmtD(addDays(en,-1))+")",cur:t0>=st&&t0<en,enc:w.enc,dep:w.dep}); }
   const weekChart = (enc||dep) ? chartBars(weeks,[{name:"Encaissé",color:"var(--k-arr)",values:weeks.map(w=>w.enc)},{name:"Dépenses",color:"var(--k-due)",values:weeks.map(w=>w.dep)}], v=>dtShort(v), {label:"Encaissements et dépenses par semaine", tipFmt:v=>dt(Math.round(v))})+'<div class="legend" style="padding:0 14px 12px"><span><i style="background:var(--k-arr)"></i>Encaissé</span><span><i style="background:var(--k-due)"></i>Dépenses</span></div>' : '';
   h += '<div class="cols"><div class="colstack">'
@@ -1380,7 +1390,7 @@ document.addEventListener("click", async e=>{
       toast(a==="arrive" ? "Arrivée de "+(c?firstName(c.name):"client")+" enregistrée"+(bal>0?" · reste "+dt(bal)+" à encaisser":"") : "Départ de "+(c?firstName(c.name):"client")+" enregistré · chambre à nettoyer"+(bal>0?" · reste "+dt(bal):"")); } else el.disabled=false; return; }
   if(a==="settings") return settingsSheet();
   if(a==="reset") return resetSheet();
-  if(a==="ics-all") return downloadIcs(upcomingArrivals(24), "arrivees-24h.ics");
+  if(a==="ics-all"){ const t=today(); return downloadIcs(activeBookings().filter(b=>!b.arrivedAt && (b.checkIn===t||b.checkIn===addDays(t,1))), "arrivees.ics"); }
   if(a==="ics-upcoming"){ const t=today(); return downloadIcs(activeBookings().filter(b=>b.checkIn>=t).sort((x,y)=>x.checkIn.localeCompare(y.checkIn)), "arrivees-a-venir.ics"); }
   if(a==="cycle-status"){ const r=room(id); if(!r) return; const cur=roomState(r); if(cur==="occupee") return; const nx = cur==="propre" ? "a_nettoyer" : "propre";
     const data={...strip(r), status:nx}; if(nx==="propre") data.cleanedAt=new Date().toISOString(); if(await save("rooms",r.id,data)) toast(nx==="propre"?r.name+" est propre":r.name+" à nettoyer"); return; }
