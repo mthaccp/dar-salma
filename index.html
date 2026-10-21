@@ -265,6 +265,26 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 .tile.dirty{background:color-mix(in srgb,var(--k-clean) 7%,var(--surface))}
 .tile.occ{background:color-mix(in srgb,var(--k-out) 7%,var(--surface))}
 .colstack{gap:12px}
+.rchips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 14px;border-top:1px solid var(--line)}
+.sec>.list>.rchips:first-child{border-top:none}
+.rchips .lab{color:var(--muted);font-size:.8rem;font-weight:600;margin-right:2px}
+.rchip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 4px;border-radius:999px;background:var(--ok-soft);color:var(--ok);font:inherit;font-size:.8rem;font-weight:600;border:1px solid transparent;cursor:pointer;white-space:nowrap}
+span.rchip{cursor:default}
+.rchip b{display:inline-grid;place-items:center;min-width:20px;height:20px;border-radius:999px;background:var(--surface);font-size:.72rem}
+.rchip:hover{border-color:currentColor}
+.rchip svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;margin-left:2px}
+.rchip.occ{background:color-mix(in srgb,var(--k-out) 14%,var(--surface));color:var(--k-out)}
+.rchip.a_nettoyer{background:color-mix(in srgb,var(--k-clean) 16%,var(--surface));color:var(--k-clean)}
+.rchip.reparation{background:var(--bad-soft);color:var(--bad)}
+.rchips .lab{min-width:78px}
+.rchips+.rchips{border-top:none;padding-top:0}
+.rhint{color:var(--muted);font-size:.76rem;padding:0 14px 10px}
+.jour .sec>.sh h3{flex:1 1 0}
+.warnt{color:var(--bad);font-weight:600}
+.k-arr{color:var(--k-arr)}.k-out{color:var(--k-out)}.k-ev{color:var(--k-ev)}
+.item .amt{white-space:nowrap;color:var(--k-due)}
+.jour .item{padding:9px 14px}
+.jour .item .btn{white-space:nowrap}
 .panel{gap:16px}
 @media (max-width:760px){.tiles{grid-template-columns:1fr 1fr}.tile{padding:10px}.tile .t{font-size:.9rem}.tile .ctrl{gap:4px}.tile .ctrl .btn,.tile .ctrl .pillbtn{padding:4px 8px;font-size:.76rem}.sec .emp{margin-left:0;flex-basis:100%}}
 .catline{display:flex;flex-wrap:wrap;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line)}
@@ -402,12 +422,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=55"></script>
+<script src="firebase-config.js?v=56"></script>
 
 <script>
 (function(){
 "use strict";
-const APP_VERSION = "55";
+const APP_VERSION = "56";
 async function checkUpdate(){
   try{
     const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
@@ -597,64 +617,66 @@ function bookingItem(b, extra, action){
   return '<div class="item click" data-act="edit-booking" data-id="'+b.id+'"><span class="roomtag">'+esc(r?r.short||r.name:"?")+'</span><div class="grow"><div class="r1"><span class="t">'+esc(c?c.name:"Client inconnu")+'</span>'+st+'</div><div class="s num">'+fmtD(b.checkIn)+' → '+fmtD(b.checkOut)+' · '+nights(b.checkIn,b.checkOut)+' nuit(s) · '+(b.guests||1)+' pers.'+(b.children?' dont '+b.children+' enfant'+(b.children>1?'s':''):'')+(b.babyBed?' + lit bébé':'')+(extra?' · '+extra:'')+'</div></div>'+(action||'')+'</div>';
 }
 
+function jRow(act, id, tag, tagCls, name, sub, right){
+  return '<div class="item click" data-act="'+act+'" data-id="'+id+'"><span class="roomtag'+(tagCls?' '+tagCls:'')+'">'+tag+'</span><div class="grow"><div class="t">'+name+'</div><div class="s">'+sub+'</div></div>'+(right||'')+'</div>';
+}
 function vJour(){
-  const t = today();
+  const t = today(), tom = addDays(t,1), wkEnd = addDays(t,7), co = S.settings.checkoutTime||"12:00";
   const arr = activeBookings().filter(b=>b.checkIn===t);
   const dep = activeBookings().filter(b=>b.checkOut===t || (b.departedAt && toISO(new Date(b.departedAt))===t));
-  const occ = units().filter(r=>occupying(r.id,t)).length;
+  const evToday = activeEvents().filter(e=>evOn(e,t));
+  const nm = b => { const c=client(b.clientId); return esc(c?c.name:"Client"); };
+  const rn = b => { const r=room(b.roomId); return esc(r?r.name:""); };
+  const tg = b => { const r=room(b.roomId); return esc(r?r.short||r.name:"?"); };
+  const evName = e => esc(e.title||EV_TYPES[e.type]||"Événement");
+  const evTag = e => esc((EV_TYPES[e.type]||"É").slice(0,1));
+  const noPol = b => policeReady(b) ? '' : ' · <span class="warnt">fiche de police</span>';
+  let h = '<div class="row spread"><h2>'+fmtLong(t).replace(/^./,c=>c.toUpperCase())+'</h2><button class="btn primary hm" data-act="new-booking"'+(S.canWrite?'':' disabled')+'>+ Réservation</button></div>';
+
+  // Programme du jour : arrivées, départs et événements, triés par heure
+  const prog = [];
+  arr.forEach(b=>{ const late=!b.arrivedAt && Date.now()>arrivalAt(b).getTime()+3600e3;
+    prog.push([b.arrivalTime||"14:00", jRow("edit-booking",b.id,tg(b),"",nm(b),'<b class="k-arr">Arrivée'+(b.arrivedAt?'':' '+(b.arrivalTime||"14:00"))+'</b>'+(late?' · <span class="warnt">en retard</span>':'')+' · '+rn(b)+' · '+(b.guests||1)+' pers.'+noPol(b), arriveBtn(b))]); });
+  dep.forEach(b=>prog.push([co, jRow("edit-booking",b.id,tg(b),"occ",nm(b),'<b class="k-out">Départ'+(b.departedAt?'':' avant '+co)+'</b> · '+rn(b), departBtn(b))]));
+  evToday.forEach(e=>prog.push([e.startTime||"20:00", jRow("edit-event",e.id,evTag(e),"evtag",evName(e),'<b class="k-ev">'+(EV_TYPES[e.type]||"Événement")+(e.startTime?' '+esc(e.startTime):'')+'</b> · '+(Number(e.people)||0)+' pers.'+(e.space?' · '+esc(e.space):''))]));
+  prog.sort((a,b)=>a[0].localeCompare(b[0]));
+  const missPol = arr.some(b=>!policeReady(b));
+  const progT = 'Programme du jour'+(arr.length?' · '+arr.length+' arrivée'+(arr.length>1?'s':''):'')+(dep.length?' · '+dep.length+' départ'+(dep.length>1?'s':''):'')+(evToday.length?' · '+evToday.length+' événement'+(evToday.length>1?'s':''):'');
+  const left = sec("arr","in",progT,0,(missPol?'<button class="btn sm ghost" data-act="goto-police">Fiches de police</button>':''), prog.length?prog.map(x=>x[1]).join(""):'<div class="empty">Rien de prévu aujourd\'hui.</div>');
+
+  // Chambres : pastilles groupées par état, un toucher change l'état
+  const occN = units().filter(r=>occupying(r.id,t)).length;
+  const G = {occupee:[], a_nettoyer:[], reparation:[], propre:[]};
+  units().forEach(r=>{
+    const st = roomState(r), inside = guestInside(r), lab = '<b>'+esc(r.short||"")+'</b>'+esc(r.name);
+    if(st==="occupee"){ const c=client(inside.clientId); G.occupee.push('<button class="rchip occ" data-act="edit-booking" data-id="'+inside.id+'" title="'+esc(c?c.name:"")+'">'+lab+'</button>'); return; }
+    const tip = st==="propre" ? "Toucher pour marquer à nettoyer" : st==="a_nettoyer" ? "Toucher quand la chambre est propre" : "Toucher quand la réparation est faite";
+    (G[st]||G.propre).push(S.canWrite ? '<button class="rchip '+st+'" data-act="cycle-status" data-id="'+r.id+'" title="'+tip+'">'+lab+(st!=="propre"?CHECK_SVG:'')+'</button>' : '<span class="rchip '+st+'">'+lab+'</span>');
+  });
+  const grp = (k,l) => G[k].length ? '<div class="rchips"><span class="lab">'+l+'</span>'+G[k].join("")+'</div>' : '';
+  const dirty = G.a_nettoyer.length;
+  const roomsBody = units().length ? grp("occupee","Occupées")+grp("a_nettoyer","À nettoyer")+grp("reparation","Réparation")+grp("propre","Prêtes")+(S.canWrite&&(dirty||G.reparation.length)?'<div class="rhint">Touchez une chambre quand le ménage ou la réparation est fait.</div>':'') : '<div class="empty">Aucune chambre. Ajoutez-les dans Réglages.</div>';
+  const roomsSec = sec("clean","clean",'Chambres · '+occN+'/'+units().length+' occupées ce soir'+(dirty?' · '+dirty+' à nettoyer':''),0,"",roomsBody);
+
+  // À venir : 7 prochains jours (arrivées et événements)
+  const day = d => d===tom ? 'Demain' : fmtLong(d).split(" ")[0].replace(/^./,c=>c.toUpperCase());
+  const up = [];
+  activeBookings().filter(b=>b.checkIn>t && b.checkIn<=wkEnd).forEach(b=>up.push([b.checkIn+(b.arrivalTime||"14:00"), jRow("edit-booking",b.id,tg(b),"",nm(b),'<b>'+day(b.checkIn)+'</b> '+(b.arrivalTime||"14:00")+' · '+rn(b)+' · '+nights(b.checkIn,b.checkOut)+' nuit'+(nights(b.checkIn,b.checkOut)>1?'s':'')+' · '+(b.guests||1)+' pers.'+(b.checkIn===tom?noPol(b):''))]));
+  activeEvents().filter(e=>e.date>t && e.date<=wkEnd).forEach(e=>up.push([e.date+(e.startTime||"20:00"), jRow("edit-event",e.id,evTag(e),"evtag",evName(e),'<b>'+day(e.date)+'</b>'+(e.startTime?' '+esc(e.startTime):'')+' · '+(Number(e.people)||0)+' pers.')]));
+  up.sort((a,b)=>a[0].localeCompare(b[0]));
+  const tomArr = activeBookings().some(b=>b.checkIn===tom && !b.arrivedAt);
+  const upSec = up.length ? sec("tom","cal","7 prochains jours",up.length,(tomArr?'<button class="btn sm ghost" data-act="ics-all">Rappels</button>':''),up.map(x=>x[1]).join("")) : '';
+
+  // Soldes à encaisser (séjours commencés et événements passés)
   const due = activeBookings().filter(b=>balance(b)>0 && b.checkIn<=t);
   const dueEv = activeEvents().filter(e=>evBal(e)>0 && e.date<=t);
   const dueSum = due.reduce((s,b)=>s+balance(b),0) + dueEv.reduce((s,e)=>s+evBal(e),0);
-  const tom = addDays(t,1);
-  const arrTom = activeBookings().filter(b=>b.checkIn===tom);
-  const dirty = units().filter(r=>roomState(r)==="a_nettoyer").length, insideN = units().filter(r=>roomState(r)==="occupee").length;
-  let h = '<div class="row spread"><h2>'+fmtLong(t).replace(/^./,c=>c.toUpperCase())+'</h2><button class="btn primary hm" data-act="new-booking"'+(S.canWrite?'':' disabled')+'>+ Réservation</button></div>';
-  const soon = upcomingArrivals(24);
-  const cd = b => { const hrs=(arrivalAt(b)-Date.now())/3600e3; return hrs>0&&hrs<=24 ? '<b style="color:'+(hrs<=12?'var(--bad)':'var(--k-rem)')+'">arrivée '+inHours(b)+' ('+(b.arrivalTime||"14:00")+')</b>' : 'attendu à '+(b.arrivalTime||"14:00"); };
-  const opts = activeBookings().filter(isOption).sort((a,b)=>String(a.depositBy||a.checkIn).localeCompare(String(b.depositBy||b.checkIn)));
-  if(opts.length){
-    h += '<div class="colstack">';
-    if(false) h += sec("rem","bell","Rappels · arrivées sous 24 h",soon.length,'<button class="btn sm ghost" data-act="ics-all">Ajouter au calendrier</button>',
-      soon.map(b=>{ const hrs=(arrivalAt(b)-Date.now())/3600e3; return bookingItem(b, '<b style="color:'+(hrs<=12?'var(--bad)':'var(--k-rem)')+'">Arrivée '+inHours(b)+' ('+(b.arrivalTime||"14:00")+')</b>'); }).join(""));
-    if(opts.length) h += sec("pay","card","Acomptes en attente",opts.length,"",opts.map(b=>{ const due=Math.max(0,depositDue(b)-paid(b)); return bookingItem(b, '<b style="color:'+(optionLate(b)?'var(--bad)':'var(--accent)')+'">'+(due>0?'Acompte '+dt(due):'Acompte reçu, à confirmer')+(b.depositBy?(optionLate(b)?' · en retard (avant le '+fmtD(b.depositBy)+')':' · avant le '+fmtD(b.depositBy)):'')+'</b>'); }).join(""));
-    h += '</div>';
-  }
-  h += '<div class="stats"><div class="stat" style="--sc:var(--accent)"><span>Chambres occupées ce soir</span><b class="num">'+occ+' / '+units().length+'</b></div>'
-     + '<div class="stat" style="--sc:var(--k-arr)"><span>Arrivées aujourd\'hui</span><b class="num">'+arr.length+'</b></div>'
-     + '<div class="stat" style="--sc:var(--k-out)"><span>Départs aujourd\'hui</span><b class="num">'+dep.length+'</b></div>'
-     + '<div class="stat" style="--sc:var(--k-due)"><span>À encaisser (séjours commencés)</span><b class="num">'+dt(dueSum)+'</b></div></div>';
-  h += sec("clean","clean","État des chambres"+(insideN?' · '+insideN+' occupée'+(insideN>1?'s':''):'')+(dirty?' · '+dirty+' à nettoyer':''),-1,(S.canWrite?'<button class="btn sm ghost edit" data-act="goto-set">'+PEN_SVG+'Modifier les chambres</button>':''),
-    units().length?units().map(r=>{
-      const o = occupying(r.id,t), inside = guestInside(r), cur = inside || o, c = cur?client(cur.clientId):null;
-      const leaving = dep.find(b=>b.roomId===r.id || isHouse(b.roomId));
-      const st = roomState(r), ld = lastDeparture(r), autoDirty = st==="a_nettoyer" && ld && ld > new Date(r.cleanedAt||AUTO_SINCE);
-      let sub;
-      if(inside) sub = 'Occupée'+(isHouse(inside.roomId)?' (maison entière)':'')+' · '+esc(c?c.name:"")+' · départ '+(inside.checkOut===t?'aujourd\'hui':'le '+fmtD(inside.checkOut))+(inside.babyBed?' · lit bébé':'');
-      else if(o && o.checkIn===t) sub = 'Arrivée prévue à '+(o.arrivalTime||"14:00")+' · '+esc(c?c.name:"");
-      else if(o) sub = 'Réservée · '+esc(c?c.name:"")+' (arrivée non confirmée)';
-      else if(leaving) sub = autoDirty ? 'Départ fait · ménage à faire' : 'Départ aujourd\'hui à '+(S.settings.checkoutTime||"12:00");
-      else sub = autoDirty ? 'Ménage à faire depuis le départ du '+fmtD(toISO(ld)) : 'Libre ce soir';
-      if(r.beds==="separes") sub += ' · lits séparés';
-      let ctrl;
-      if(st==="occupee") ctrl = '<span class="pill occ">Occupée</span>'+(inside.checkOut===t?departBtn(inside):'');
-      else if(!S.canWrite) ctrl = st==="propre"?'<span class="pill ok">Propre</span>':st==="a_nettoyer"?'<span class="pill warn">À nettoyer</span>':'<span class="pill bad">Réparation</span>';
-      else if(st==="a_nettoyer") ctrl = '<button class="btn sm primary" data-act="cycle-status" data-id="'+r.id+'">Marquer propre</button>';
-      else ctrl = (o && o.checkIn===t && !o.arrivedAt ? arriveBtn(o) : '') + '<button class="pillbtn '+(st==="propre"?'ok':'bad')+'" data-act="cycle-status" data-id="'+r.id+'" title="'+(st==="propre"?'Toucher pour marquer à nettoyer':'Toucher quand la réparation est faite')+'">'+(st==="propre"?'Propre':'Réparation')+'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg></button>';
-      return '<div class="tile'+(st==='occupee'?' occ':st==='a_nettoyer'?' dirty':'')+(S.canWrite?' click" data-act="edit-room" data-id="'+r.id:'')+'"><span class="roomtag'+(st==="occupee"?' occ':'')+'">'+esc(r.short||r.name)+'</span><div class="grow"><div class="t">'+esc(r.name)+'</div><div class="s">'+sub+'</div></div><div class="ctrl">'+ctrl+'</div></div>';
-    }).join(""):'<div class="empty">Aucune chambre. Ajoutez-les dans Finances › Chambres.</div>');
-  const evToday = activeEvents().filter(e=>evOn(e,t)), evTom = activeEvents().filter(e=>e.date===tom);
-  if(evToday.length || evTom.length) h += sec("ev","ev","Événements"+(evToday.length?' · '+evToday.length+' aujourd\'hui':'')+(evTom.length?' · '+evTom.length+' demain':''),evToday.length+evTom.length,"", evToday.map(e=>evItem(e,'<b style="color:var(--k-ev)">aujourd\'hui'+(e.startTime?' à '+esc(e.startTime):'')+'</b>')).join("")+evTom.map(e=>evItem(e,'demain'+(e.startTime?' à '+esc(e.startTime):''))).join(""));
-  h += '<div class="cols"><div class="colstack">';
-  const arrived = arr.filter(b=>b.arrivedAt).length;
-  h += sec("arr","in","Arrivées aujourd\'hui"+(arr.length?' · '+arrived+'/'+arr.length+' arrivé'+(arrived>1?'s':''):''),arr.length,(arr.length?'<button class="btn sm ghost" data-act="goto-police">Fiches de police</button>':''), arr.length?arr.map(b=>{ const late=!b.arrivedAt && Date.now()>arrivalAt(b).getTime()+3600e3; return bookingItem(b, (policeReady(b)?'':'<span style="color:var(--bad);font-weight:600">fiche de police à remplir</span> · ')+(b.arrivedAt?'':(late?'<b style="color:var(--warn)">attendu à '+(b.arrivalTime||"14:00")+', pas encore arrivé</b>':cd(b))), arriveBtn(b)); }).join(""):'<div class="empty">Aucune arrivée aujourd\'hui.</div>');
-  if(arrTom.length) h += sec("tom","bell","Arrivées demain · rappels",arrTom.length,'<button class="btn sm ghost" data-act="ics-all">Ajouter au calendrier</button>', arrTom.map(b=>bookingItem(b, (policeReady(b)?'':'<span style="color:var(--bad);font-weight:600">fiche de police à remplir</span> · ')+cd(b))).join(""));
-  const departed = dep.filter(b=>b.departedAt).length;
-  h += sec("out","out","Départs aujourd\'hui"+(dep.length?' · '+departed+'/'+dep.length+' parti'+(departed>1?'s':''):''),dep.length,"", dep.length?dep.map(b=>bookingItem(b, b.departedAt?'':'départ avant '+(S.settings.checkoutTime||"12:00"), departBtn(b))).join(""):'<div class="empty">Aucun départ aujourd\'hui.</div>');
-  const wk = activeBookings().filter(b=>b.checkIn>tom && b.checkIn<=addDays(t,7)).sort((a,b)=>a.checkIn.localeCompare(b.checkIn));
-  if(wk.length) h += sec("tom","cal","Arrivées des 7 prochains jours",wk.length,"", wk.map(b=>bookingItem(b, fmtLong(b.checkIn).split(" ").slice(0,1)[0])).join(""));
-  h += '</div><div class="colstack">';
-  h += sec("due","coins","Soldes à encaisser",due.length+dueEv.length,(dueSum?'<b class="num" style="color:var(--k-due)">'+dt(dueSum)+'</b>':''), (due.length||dueEv.length)?due.map(b=>bookingItem(b)).join("")+dueEv.map(e=>evItem(e)).join(""):'<div class="empty">Tout est encaissé.</div>');
-  h += '</div></div>';
+  const amt = v => '<b class="num amt">'+dt(v)+'</b>';
+  const dueSec = (due.length||dueEv.length) ? sec("due","coins","Soldes à encaisser",0,'<b class="num" style="color:var(--k-due)">'+dt(dueSum)+'</b>',
+    due.map(b=>jRow("edit-booking",b.id,tg(b),"",nm(b),rn(b)+' · départ '+(b.checkOut===t?'aujourd\'hui':fmtD(b.checkOut)),amt(balance(b)))).join("")
+    + dueEv.map(e=>jRow("edit-event",e.id,evTag(e),"evtag",evName(e),fmtD(e.date),amt(evBal(e)))).join("")) : '';
+
+  h += '<div class="cols jour"><div class="colstack">'+left+roomsSec+'</div>'+(upSec||dueSec?'<div class="colstack">'+upSec+dueSec+'</div>':'')+'</div>';
   return h;
 }
 const SEC_ICONS = {
